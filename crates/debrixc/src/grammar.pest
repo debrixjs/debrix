@@ -1,0 +1,118 @@
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+COMMENT = _{ ("/*" ~ (!"*/" ~ ANY)* ~ "*/") | ("//" ~ (!NEWLINE ~ ANY)*) }
+
+// -- Misc --
+string = ${ PUSH("\"" | "'") ~ (!PEEK ~ ANY | "\\" ~ PEEK)* ~ POP }
+number = ${ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* ~ ("." ~ ASCII_DIGIT+)? }
+boolean = { "true" | "false" }
+literal = _{ string | number | boolean }
+ident = ${ ASCII_ALPHA ~ (ASCII_ALPHA | ASCII_DIGIT)* }
+target = _{ ident | "*" }
+
+// The document is parsed in two stages - head and body.
+//  1. The head is parsed, configuration is gathered.
+//  2. Preprocessors will run on the body, head is unaffected.
+//  3. The body is parsed and transformed into the component code. 
+document = { head ~ body_str }
+body_str = { ANY* }
+
+// --- Head ---
+head = { SOI ~ head_expression* ~ "-"{3,} }
+
+// -- Head Declarations --
+head_expression = _{ using | import }
+	using = { "using" ~ (using_import | using_literal) ~ ";"? }
+		using_import = { using_import_clause ~ "from" ~ string }
+			using_import_clause = { target ~ ("as" ~ ident)? }
+		using_literal = { ident ~ string }
+	import = { "import" ~ import_clauses ~ "from" ~ string ~ ";"? }
+		import_clauses = { (import_clause_all | import_clause_default ~ ("," ~ import_clauses_named?)? | import_clauses_named) }
+		import_clause_default = { ident ~ ident }
+		import_clause_all = { ident ~ "*" ~ "as" ~ ident }
+		import_clauses_named = { "{" ~ (import_clause_named ~ ",")* ~ import_clause_named? ~ "}" }
+		import_clause_named = { ident ~ ident ~ ("as" ~ ident)? }
+
+// --- Body ---
+body = { node ~ EOI }
+children = { node* }
+node = _{ !("</" | "->") ~ (comment | element | text | text_binding | flow_control) }
+
+// -- Immutable Javascript Expressions --
+expression = {
+	// Operator Between Expressions
+	single_expression ~ (
+		// Mathematical Operators
+		"**" | "*" | "/" | "%" | "+" | "-" |
+
+		// Logical Operators
+		"&&" | "||" | "===" | "!==" | "==" | "!=" |
+
+		// Bitwise Operators
+		"<<" | ">>" | ">>>" | "&" | "^" | "|" |
+
+		// Relational Operators
+		"<=" | ">=" | "<" | ">" | "instanceof" | "in"
+	) ~ expression |
+
+	single_expression
+}
+single_expression = _{
+	// Instanciation
+	"new" ~ (identifiable | literal) ~ expression_call? |
+
+	// Function Calling
+	(identifiable | literal) ~ expression_call |
+
+	// Left-Hand-Side Operators
+	("!" | "~" | "-" | "+" | "typeof" | "void") ~ expression |
+
+	// Immutable Function Declaration
+	("(" ~ (ident ~ ",")* ~ ident? ~ ")")? ~ "=>" ~ expression |
+
+	// Array Declaration
+	"[" ~ (expression ~ ",")* ~ expression? ~ "]" |
+
+	// Object Declaration
+	"{" ~ (object_pair ~ ",")* ~ object_pair? ~ "}" |
+
+	// Grouping
+	"(" ~ expression ~ ")" |
+
+	// Literal, Identifier or Member
+	(identifiable | literal)
+}
+	expression_call = { "(" ~ (expression ~ ",")* ~ expression? ~ ")" }
+	object_pair = { literal | (string | "[" ~ expression ~ "]") ~ (":" | "=>") ~ expression }
+	identifiable = { (ident ~ "?"? ~ ".")* ~ ident }
+
+// -- Comment --
+comment = ${ "<!--" ~ comment_data ~ "-->" }
+comment_data = { (!"-->" ~ ANY)* }
+
+// -- Element --
+element = {
+	// Self-Closing
+	"<" ~ tag_name ~ tag_inner ~ "/>" |
+
+	// Start and End Tag
+	"<" ~ PUSH(tag_name) ~ tag_inner ~ ">" ~ children ~ "</" ~ POP ~ ">"
+}
+	tag_name = ${ (ASCII_ALPHA | ASCII_DIGIT)+ }
+	tag_inner = { attribute* ~ bindings? ~ attribute* }
+
+	attribute = _{ attribute_binding | attribute_static }
+	attribute_static = { attribute_name ~ ("=" ~ string)? }
+	attribute_binding = { attribute_name ~ "=" ~ "(" ~ expression ~ ")" }
+	attribute_name = ${ (ASCII_ALPHA | ASCII_DIGIT)+ }
+
+	bindings = _{ "(" ~ (binding ~ ",")* ~ binding? ~ ")" }
+	binding = { ident ~ ":" ~ expression }
+
+// -- Text --
+text = ${ (!("<" | ">" | "{" | "}" | "<!--" | "-->") ~ ANY)+ }
+
+// -- Text binding --
+text_binding = ${ "{" ~ expression ~ "}" }
+
+// -- Flow Control --
+flow_control = { "<-" ~ ident ~ expression ~ ":" ~ children ~ "->" }

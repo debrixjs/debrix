@@ -1,0 +1,30 @@
+{
+	"name": "@debrix/internal",
+	"version": "0.1.0",
+	"description": "Shared internal runtime utilities for generated components.",
+	"author": "Elias Skogevall",
+	"license": "MIT",
+	"exports": {
+		"require": "./index.js",
+		"import": "./index.mjs",
+		"types": "./index.d.ts"
+	},
+	"files": [
+		"./index.js",
+		"./index.mjs",
+		"./index.d.ts"
+	],
+	"scripts": {
+		"build": "rollup -c && tsc --declaration --emitDeclarationOnly --outDir types",
+		"release": "rollup -c --environment RELEASE && tsc --declaration --emitDeclarationOnly --outDir types",
+		"prepublishOnly": "npm run release"
+	},
+	"devDependencies": {
+		"rollup": "2.x",
+		"rollup-plugin-typescript2": "0.x",
+		"typescript": "4.x"
+	},
+	"peerDependencies": {
+		"debrix": "0.x"
+	}
+}
