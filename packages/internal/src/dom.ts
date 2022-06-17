@@ -3,7 +3,7 @@ export function comment(data: string) {
 }
 
 export function element(tag_name: string, options?: ElementCreationOptions) {
-	return document.createElement(tag_name, options)
+	return document.createElement(tag_name, options);
 }
 
 export function text(data: string) {

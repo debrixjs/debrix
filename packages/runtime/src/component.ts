@@ -1,4 +1,4 @@
-import { Lifecycle } from "./lifecycle";
+import { Lifecycle } from './lifecycle';
 
 export interface ComponentOptions {
 	props?: Record<string, unknown>
