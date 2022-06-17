@@ -1,7 +1,10 @@
 {
 	"license": "MIT",
 	"workspaces": [
-		"packages/*"
+		"packages/compiler",
+		"packages/compiler-wasm",
+		"packages/runtime",
+		"packages/internal"
 	],
 	"scripts": {
 		"build": "npm run build --workspaces",
