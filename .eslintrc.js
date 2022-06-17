@@ -2,7 +2,7 @@ const ts = rule => `@typescript-eslint/${rule}`;
 
 const shared = {
 	indent: ["error", "tab", { SwitchCase: 1 }],
-	quotes: ["error", "single"],
+	quotes: ["error", "double"],
 	semi: ["error", "always"],
 	"eol-last": ["error", "always"],
 	"eqeqeq": "error",

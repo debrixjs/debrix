@@ -1,5 +1,5 @@
-import * as debrixc_wasm from './wasm/debrixc_wasm';
-import wasm from './wasm/debrixc_wasm_bg.wasm';
+import * as debrixc_wasm from "./wasm/debrixc_wasm";
+import wasm from "./wasm/debrixc_wasm_bg.wasm";
 
 function decode(wasm) {
 	wasm = atob(wasm);

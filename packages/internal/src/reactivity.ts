@@ -1,4 +1,4 @@
-import type { Binder, Lifecycle, Revokable } from 'debrix';
+import type { Binder, Lifecycle, Revokable } from "debrix";
 
 export interface SubscribableProperty<T> {
 	subscribe(cb: (v: T) => void): Revokable

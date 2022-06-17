@@ -1,10 +1,10 @@
-const { access, mkdir, writeFile, readFile, chmod } = require('node:fs/promises');
-const { createWriteStream } = require('node:fs');
-const { https } = require('follow-redirects');
-const { resolve } = require('node:path');
+const { access, mkdir, writeFile, readFile, chmod } = require("node:fs/promises");
+const { createWriteStream } = require("node:fs");
+const { https } = require("follow-redirects");
+const { resolve } = require("node:path");
 
-const PREFIX = '[debrix/compiler]';
-const DEFAULT_VERSION = 'latest';
+const PREFIX = "[debrix/compiler]";
+const DEFAULT_VERSION = "latest";
 
 function unreachable() {
 	console.error(`${PREFIX} ERROR: Reached an unreachable state!\n`);
@@ -16,25 +16,25 @@ async function exists(filename) {
 		await access(filename);
 		return true;
 	} catch (err) {
-		if (err.code === 'ENOENT')
+		if (err.code === "ENOENT")
 			return false;
 		throw err;
 	}
 }
 
 function get_binary_filename() {
-	if (process.platform === 'win32')
-		return 'bin/debrix.exe';
-	return 'bin/debrix';
+	if (process.platform === "win32")
+		return "bin/debrix.exe";
+	return "bin/debrix";
 }
 
 function get_binary_download(version) {
 	// Release asset name is specified in the release workflow.
 	const asset_suffix = (() => {
 		switch (process.platform) {
-			case 'linux': return 'linux-x86_64';
-			case 'darwin': return 'darwin-x86_64';
-			case 'win32': return 'windows-x86_64.exe';
+			case "linux": return "linux-x86_64";
+			case "darwin": return "darwin-x86_64";
+			case "win32": return "windows-x86_64.exe";
 			default: unreachable();
 		}
 	})();
@@ -44,29 +44,29 @@ function get_binary_download(version) {
 
 function get_releases() {
 	return new Promise((resolve, reject) => {
-		https.request('https://api.github.com/repos/debrix/compiler/releases', {
+		https.request("https://api.github.com/repos/debrix/compiler/releases", {
 			headers: {
-				Accept: 'application/vnd.github.v3+json',
-				'User-Agent': 'DEBRIXC'
+				Accept: "application/vnd.github.v3+json",
+				"User-Agent": "DEBRIXC"
 			}
 		}, (response) => {
-			response.on('error', reject);
+			response.on("error", reject);
 
 			if (!(response.statusCode >= 200 && response.statusCode < 300)) {
 				console.error(`\n${PREFIX} ERROR: Unable to fetch releases (${response.statusCode}). Please submit an issue at https://github.com/debrix/compiler/issues/new.`);
 				return;
 			}
 
-			let data = '';
-			response.on('data', chunk => data += chunk.toString());
-			response.on('close', () =>
+			let data = "";
+			response.on("data", chunk => data += chunk.toString());
+			response.on("close", () =>
 				resolve(
 					JSON.parse(data)
 						.filter(release => release.assets.length > 0)
 				)
 			);
 		})
-			.on('error', reject)
+			.on("error", reject)
 			.end();
 	});
 }
@@ -76,14 +76,14 @@ async function get_version(input) {
 	if (/^([0-9]+)\.([0-9]+)\.([0-9]+)$/.test(input)) /* exact */ {
 		return input;
 	} else {
-		if (input === 'latest' || input === '*' || input === 'x') /* next stable version*/ {
+		if (input === "latest" || input === "*" || input === "x") /* next stable version*/ {
 			const releases = await get_releases();
 			const release = releases.find(release => !release.prerelease);
 			if (release)
 				return release.tag_name;
 			else
 				return undefined;
-		} else if (input === 'next') /* next version */ {
+		} else if (input === "next") /* next version */ {
 			const releases = await get_releases();
 			return releases[0].tag_name;
 		} else if (
@@ -131,20 +131,20 @@ async function get_input_version() {
 		return process.env.DEBRIXC_VERSION;
 
 	const pkg = await find_package(process.cwd());
-	if (pkg && pkg.config && pkg.config['debrix-version'])
-		return pkg.config['debrix-version'];
+	if (pkg && pkg.config && pkg.config["debrix-version"])
+		return pkg.config["debrix-version"];
 
 	return DEFAULT_VERSION;
 }
 
 async function find_package(dir) {
-	const path = resolve(dir, 'package.json');
+	const path = resolve(dir, "package.json");
 
 	if (await exists(path))
-		return JSON.parse(await readFile(path, 'utf-8'));
+		return JSON.parse(await readFile(path, "utf-8"));
 
 	let next;
-	if ((next = resolve(dir, '..')) !== dir) {
+	if ((next = resolve(dir, "..")) !== dir) {
 		return await find_package(next);
 	}
 }
@@ -167,7 +167,7 @@ async function main() {
 		|| process.env.DEBRIXC_NO_CACHE
 		|| process.env.DEBRIXC_VERSION
 	) {
-		console.log('');
+		console.log("");
 	}
 
 	if (process.env.DEBRIXC_NO_INSTALL) {
@@ -175,7 +175,7 @@ async function main() {
 		process.exit(0);
 	}
 
-	const SUPPORTED_PLATFORMS = new Set(['darwin', 'linux', 'win32']);
+	const SUPPORTED_PLATFORMS = new Set(["darwin", "linux", "win32"]);
 	if (!SUPPORTED_PLATFORMS.has(process.platform)) {
 		console.error(`${PREFIX} ERROR: Build for current platform (${process.platform}) is unavailable.\n`);
 		process.exit(1);
@@ -186,18 +186,18 @@ async function main() {
 	const formatted_version = format_version(version);
 	const binary_filename = get_binary_filename();
 
-	if (await exists('bin')) {
+	if (await exists("bin")) {
 		if (
 			!process.env.DEBRIXC_NO_CACHE
-			&& await exists('bin/version.txt')
+			&& await exists("bin/version.txt")
 			&& await exists(binary_filename)
-			&& await readFile('bin/version.txt', 'utf-8') === version
+			&& await readFile("bin/version.txt", "utf-8") === version
 		) {
 			// console.log(`${PREFIX} Binary is already installed. Skipping installation... `);
 			process.exit(0);
 		}
 	} else {
-		await mkdir('bin');
+		await mkdir("bin");
 	}
 
 	const binary_dest = createWriteStream(binary_filename);
@@ -212,27 +212,27 @@ async function main() {
 				process.exit(1);
 			}
 
-			response.on('error', (err) => {
-				console.log('');
+			response.on("error", (err) => {
+				console.log("");
 				reject(err);
 			});
 
-			response.on('close', () => {
-				console.log('');
+			response.on("close", () => {
+				console.log("");
 				resolve();
 			});
 
-			if (response.headers['content-length']) {
-				const length = parseInt(response.headers['content-length']);
-				let prevProgress = '0';
+			if (response.headers["content-length"]) {
+				const length = parseInt(response.headers["content-length"]);
+				let prevProgress = "0";
 				let currentLength = 0;
 
-				process.stdout.write('\x1b[3D (0%)...');
+				process.stdout.write("\x1b[3D (0%)...");
 
-				response.on('data', chunk => {
+				response.on("data", chunk => {
 					currentLength += chunk.length;
 					const progress = (currentLength / length * 100).toFixed(0);
-					process.stdout.write(`\x1b[${prevProgress.length + 5}D${progress}${prevProgress.length === progress.length ? '\x1b[5C' : '%)...'}`);
+					process.stdout.write(`\x1b[${prevProgress.length + 5}D${progress}${prevProgress.length === progress.length ? "\x1b[5C" : "%)..."}`);
 					prevProgress = progress;
 					binary_dest.write(chunk);
 				});
@@ -240,13 +240,13 @@ async function main() {
 				response.pipe(binary_dest);
 			}
 		});
-		request.on('error', err => { throw err; });
+		request.on("error", err => { throw err; });
 		request.end();
 	});
 
 	await new Promise((resolve) => binary_dest.close(resolve));
-	await chmod(binary_filename, '0775');
-	await writeFile('bin/version.txt', version);
+	await chmod(binary_filename, "0775");
+	await writeFile("bin/version.txt", version);
 }
 
 main();

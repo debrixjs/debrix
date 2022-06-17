@@ -1,7 +1,7 @@
-import { Accessor } from './binding';
-import EventEmitter from './event-emitter';
-import { Revokable } from './lifecycle';
-import { Subscribable, Subscription, SubscriptionListener } from './subscription';
+import { Accessor } from "./binding";
+import EventEmitter from "./event-emitter";
+import { Revokable } from "./lifecycle";
+import { Subscribable, Subscription, SubscriptionListener } from "./subscription";
 
 export function prop(target: Model, key: string): void {
 	Object.defineProperty(target, key, {
@@ -17,7 +17,7 @@ export function prop(target: Model, key: string): void {
  * @internal
  * Avoid using this externally. It is meant to be a last resort. Please read the docs before using.
  */
-export const WRAPPED = Symbol('debrix');
+export const WRAPPED = Symbol("debrix");
 
 type Ref = readonly PropertyKey[] & { readonly __brand: unique symbol };
 
@@ -43,7 +43,7 @@ export abstract class Model<Props extends object = Record<string, unknown>> impl
 		const lis = (ref: Ref, value?: unknown) => {
 			if (refs.find(target => target === ref)) listener(value, ref);
 		};
-		const revs = (['set', 'delete'] as const).map(ev => this.#events.on(ev, lis));
+		const revs = (["set", "delete"] as const).map(ev => this.#events.on(ev, lis));
 		return {
 			revoke() {
 				for (const rev of revs) rev.revoke();
@@ -81,8 +81,8 @@ export abstract class Model<Props extends object = Record<string, unknown>> impl
 	$resubscribe(listener: SubscriptionListener): () => Subscription {
 		const deps: [get: Ref[], del: Ref[]] = [[], []];
 		const revs: [get: Revokable, del: Revokable] = [
-			this.#events.on('get', ref => deps[0].push(ref)),
-			this.#events.on('delete', ref => deps[1].push(ref))
+			this.#events.on("get", ref => deps[0].push(ref)),
+			this.#events.on("delete", ref => deps[1].push(ref))
 		];
 		return () => {
 			for (const rev of revs) rev.revoke();
@@ -103,7 +103,7 @@ export abstract class Model<Props extends object = Record<string, unknown>> impl
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	$reference<T>(target: T): Accessor<T> {
-		throw new Error('\'$reference\' was never implemented by proxy!');
+		throw new Error("'$reference' was never implemented by proxy!");
 	}
 
 	constructor(protected props?: Props) {
@@ -123,14 +123,14 @@ export abstract class Model<Props extends object = Record<string, unknown>> impl
 						// function is no longer expected to receive refs.
 						returnRef = true;
 
-						if (key === '$subscribe') {
+						if (key === "$subscribe") {
 							return (...args: unknown[]) => {
 								returnRef = false;
 								return (this.$subscribe as (...args: unknown[]) => unknown)(...args);
 							};
 						}
 
-						if (key === '$reference') {
+						if (key === "$reference") {
 							return (ref: Ref) => {
 								returnRef = false;
 
@@ -161,7 +161,7 @@ export abstract class Model<Props extends object = Record<string, unknown>> impl
 
 					const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
 					if (!descriptor) return undefined;
-					this.#events.trigger('get', ref);
+					this.#events.trigger("get", ref);
 
 					// If the descriptor has a setter, the property is treated as a "computed" property.
 					if (descriptor.get) {
@@ -172,11 +172,11 @@ export abstract class Model<Props extends object = Record<string, unknown>> impl
 						// This trigger the "virtual" set. The value has not changed yet because it is a computed.
 						// Instead the "set" event is triggered to let others know that the computed will possibly
 						// return another result, because the variables/factors has changed.
-						const endResub = this.$resubscribe(value => this.#events.trigger('set', ref, value));
+						const endResub = this.$resubscribe(value => this.#events.trigger("set", ref, value));
 						let value = Reflect.get(target, key, receiver);
 
 						// Continue to trap child objects to all capture events.
-						if (value !== null && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, WRAPPED))
+						if (value !== null && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, WRAPPED))
 							value = wrap(value, ref);
 
 						// Remember the subscription so that it can be revoked when getting the property. See code above.
@@ -191,14 +191,14 @@ export abstract class Model<Props extends object = Record<string, unknown>> impl
 				set: (target, key, value, receiver) => {
 					const ref = getRef(key);
 					const success = Reflect.set(target, key, value, receiver);
-					if (success) this.#events.trigger('set', value, ref);
+					if (success) this.#events.trigger("set", value, ref);
 					return success;
 				},
 
 				deleteProperty: (target, key) => {
 					const ref = getRef(key);
 					const success = Reflect.deleteProperty(target, key);
-					if (success) this.#events.trigger('delete', ref);
+					if (success) this.#events.trigger("delete", ref);
 					return success;
 				}
 			});

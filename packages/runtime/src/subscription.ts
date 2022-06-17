@@ -1,5 +1,5 @@
-import { Accessor } from './binding';
-import { Revokable } from './lifecycle';
+import { Accessor } from "./binding";
+import { Revokable } from "./lifecycle";
 
 export interface SubscriptionListener {
 	(value: unknown): void
