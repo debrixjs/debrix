@@ -17,6 +17,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+      - uses: jetli/wasm-pack-action@v0.3.0
       - run: cargo build --all-features --verbose
       - run: cargo test --verbose
       - uses: actions/setup-node@v3
