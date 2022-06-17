@@ -22,7 +22,7 @@ module.exports = {
 				indent: ["error", "tab", { SwitchCase: 1 }],
 				quotes: ["error", "single"],
 				semi: ["error", "always"],
-				"eol-last": ["error", "never"],
+				"eol-last": ["error", "always"],
 				"eqeqeq": "error",
 				"linebreak-style": ["error", "unix"],
 				"no-cond-assign": "off",
@@ -54,7 +54,7 @@ module.exports = {
 			rules: {
 				indent: ["error", "tab", { SwitchCase: 1 }],
 				quotes: ["error", "single"],
-				"eol-last": ["error", "never"],
+				"eol-last": ["error", "always"],
 				"eqeqeq": "error",
 				"linebreak-style": ["error", "unix"],
 				"no-cond-assign": "off",
