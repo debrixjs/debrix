@@ -4,11 +4,12 @@
 		"packages/compiler",
 		"packages/compiler-wasm",
 		"packages/runtime",
-		"packages/internal"
+		"packages/internal",
+		"packages/*"
 	],
 	"scripts": {
-		"build": "npm run build --workspaces",
-		"release": "npm run release --workspaces",
+		"build": "npm run build --workspaces --if-present",
+		"release": "npm run release --workspaces --if-present",
 		"test": "npm run test --workspaces --if-present",
 		"lint": "npm run lint --workspaces --if-present && eslint --ext .js,.ts packages/"
 	},
