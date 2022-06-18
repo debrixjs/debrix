@@ -36,3 +36,9 @@ impl Chunk {
 		self.source += &chunk.source;
 	}
 }
+
+impl Default for Chunk {
+	fn default() -> Self {
+		Self::new()
+	}
+}

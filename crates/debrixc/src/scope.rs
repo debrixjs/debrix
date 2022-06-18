@@ -16,7 +16,7 @@ impl Scope {
 		let mut unique = specifier.to_owned();
 		if *count > 0 {
 			unique += "_";
-			unique += &((*count + 1).to_string());
+			unique += &(*count.to_string());
 			if self.unqiues.contains_key(&unique) {
 				self.unique(&unique)
 			} else {
@@ -28,5 +28,11 @@ impl Scope {
 			*count += 1;
 			unique
 		}
+	}
+}
+
+impl Default for Scope {
+	fn default() -> Self {
+		Self::new()
 	}
 }
