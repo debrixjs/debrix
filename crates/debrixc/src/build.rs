@@ -51,7 +51,7 @@ impl Build {
 			fn_bind_attr: "bind_attr".to_owned(),
 
 			imports: [(
-				"debrix/internal".to_owned(),
+				"@debrix/internal".to_owned(),
 				["comment", "element", "text", "bind", "bind_text", "bind_attr"]
 					.map(|x| (x.to_owned(), x.to_owned()))
 					.into_iter()
