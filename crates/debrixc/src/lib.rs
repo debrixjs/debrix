@@ -4,6 +4,7 @@ pub mod debug;
 pub mod literal;
 pub mod parser;
 pub mod plugin;
+pub mod scope;
 pub mod utils;
 
 extern crate pest;

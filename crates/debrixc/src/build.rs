@@ -1,6 +1,9 @@
+mod expression;
+
 use crate::chunk::Chunk;
 use crate::literal::Literal;
 use crate::parser::{self, Rule};
+use crate::scope::Scope;
 use crate::utils;
 use pest::{
 	iterators::{Pair, Pairs},
@@ -32,23 +35,25 @@ pub struct Build {
 	fn_bind_attr: String,
 
 	imports: HashMap<String, Vec<(String, String)>>,
-	unqiues: HashMap<String, usize>,
+	scope: Scope
 }
 
 impl Build {
 	pub fn new() -> Self {
+		let mut scope = Scope::new();
+
 		Self {
 			head: Chunk::new(),
 			init: Chunk::new(),
 			bind: Chunk::new(),
 			insert: Chunk::new(),
 
-			fn_comment: "comment".to_owned(),
-			fn_element: "element".to_owned(),
-			fn_text: "text".to_owned(),
-			fn_bind: "bind".to_owned(),
-			fn_bind_text: "bind_text".to_owned(),
-			fn_bind_attr: "bind_attr".to_owned(),
+			fn_comment: scope.unique("comment"),
+			fn_element: scope.unique("element"),
+			fn_text: scope.unique("text"),
+			fn_bind: scope.unique("bind"),
+			fn_bind_text: scope.unique("bind_text"),
+			fn_bind_attr: scope.unique("bind_attr"),
 
 			imports: [(
 				"@debrix/internal".to_owned(),
@@ -60,10 +65,7 @@ impl Build {
 			.into_iter()
 			.collect(),
 
-			unqiues: ["comment", "element", "text", "bind", "bind_text", "bind_attr"]
-				.map(|x| (x.to_owned(), 1_usize))
-				.into_iter()
-				.collect(),
+			scope
 		}
 	}
 
@@ -167,31 +169,12 @@ export default class {{
 	}
 
 	pub fn import(&mut self, specifier: &str, source: &str) -> String {
-		let local = self.unique(specifier);
+		let local = self.scope.unique(specifier);
 		self.imports
 			.entry(source.to_owned())
 			.and_modify(|e| e.push((specifier.to_owned(), local.to_owned())))
 			.or_insert(vec![(specifier.to_owned(), local.to_owned())]);
 		local
-	}
-
-	pub fn unique(&mut self, specifier: &str) -> String {
-		let count = self.unqiues.entry(specifier.to_owned()).or_insert(0);
-		let mut unique = specifier.to_owned();
-		if *count > 0 {
-			unique += "_";
-			unique += &((*count + 1).to_string());
-			if self.unqiues.contains_key(&unique) {
-				self.unique(&unique)
-			} else {
-				let count = self.unqiues.get_mut(specifier).unwrap();
-				*count += 1;
-				unique
-			}
-		} else {
-			*count += 1;
-			unique
-		}
 	}
 
 	fn head(&mut self, head: Pair<Rule>) {
@@ -216,7 +199,7 @@ export default class {{
 							let alias = clause_inner.next();
 							let source = inner.next().unwrap();
 							if let Some(alias) = alias {
-								let unique = self.unique(alias.as_str());
+								let unique = self.scope.unique(alias.as_str());
 								let is_all = original.as_str() == "*";
 								self.head.map(span.start_pos().line_col());
 								self.head.append("import ");
@@ -241,7 +224,7 @@ export default class {{
 									Using::Import(unique.to_owned()),
 								));
 							} else {
-								let unique = self.unique(&original.as_str());
+								let unique = self.scope.unique(&original.as_str());
 								self.head.map(span.start_pos().line_col());
 								self.head.append("import ");
 								self.head.map(original.as_span().start_pos().line_col());
@@ -303,7 +286,7 @@ export default class {{
 								let kind = inner.next().unwrap();
 								let name = inner.next().unwrap();
 
-								let unique_name = self.unique(name.as_str());
+								let unique_name = self.scope.unique(name.as_str());
 								self.head.map(name.as_span().start_pos().line_col());
 								self.head.append(&unique_name);
 
@@ -325,7 +308,7 @@ export default class {{
 								let kind = inner.next().unwrap();
 								let name = inner.next().unwrap();
 
-								let unique_name = self.unique(name.as_str());
+								let unique_name = self.scope.unique(name.as_str());
 								self.head.map(span.start_pos().line_col());
 								self.head.append("* as ");
 								self.head.map(name.as_span().start_pos().line_col());
@@ -355,7 +338,7 @@ export default class {{
 									let alias = inner.next();
 
 									if let Some(alias) = alias {
-										let unique = self.unique(alias.as_str());
+										let unique = self.scope.unique(alias.as_str());
 										self.head.map(name.as_span().start_pos().line_col());
 										self.head.append(name.as_str());
 										self.head.map(name.as_span().end_pos().line_col());
@@ -374,7 +357,7 @@ export default class {{
 										));
 									} else {
 										let name_str = name.as_str();
-										let unique = self.unique(name_str);
+										let unique = self.scope.unique(name_str);
 
 										if unique == name_str {
 											self.head.map(name.as_span().start_pos().line_col());
@@ -443,7 +426,7 @@ export default class {{
 				let mut inner = pair.into_inner();
 				let comment_data = inner.next().unwrap();
 
-				let id = self.unique("comment");
+				let id = self.scope.unique("comment");
 				self.init.append(&format!(
 					"const {id} = {fn_comment}(\"{data}\");\n",
 					fn_comment = self.fn_comment,
@@ -460,7 +443,7 @@ export default class {{
 				let tag_inner = inner.next().unwrap();
 				let children = inner.next();
 
-				let id = self.unique(tag_name_str);
+				let id = self.scope.unique(tag_name_str);
 				self.init.append(&format!(
 					"const {id} = {fn_element}(\"{tag_name_str}\");\n",
 					fn_element = self.fn_element
@@ -519,7 +502,7 @@ export default class {{
 			}
 
 			Rule::text => {
-				let id = self.unique("text");
+				let id = self.scope.unique("text");
 				self.init.append(&format!(
 					"const {id} = {fn_text}(\"{data}\");\n",
 					fn_text = self.fn_text,
@@ -533,7 +516,7 @@ export default class {{
 				let mut inner = pair.into_inner();
 				let expression = inner.next().unwrap();
 
-				let id = self.unique("text");
+				let id = self.scope.unique("text");
 				self.init.append(&format!(
 					"const {id} = {fn_text}(\"\");\n",
 					fn_text = self.fn_text
