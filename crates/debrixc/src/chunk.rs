@@ -24,4 +24,15 @@ impl Chunk {
 	pub fn append(&mut self, source: &str) {
 		self.source += source;
 	}
+
+	pub fn append_chunk(&mut self, chunk: Chunk) {
+		let to = self.pos();
+		self.mappings.extend(
+			chunk
+				.mappings
+				.iter()
+				.map(|mapping| (mapping.0, mapping.1, mapping.2 + to.0, mapping.3 + to.1)),
+		);
+		self.source += &chunk.source;
+	}
 }
