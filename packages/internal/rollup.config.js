@@ -6,7 +6,7 @@ export default {
 	input: "src/index.ts",
 	output: [
 		{
-			name: "@debrix/internal",
+			name: "debrix_internal",
 			file: "index.js",
 			format: "umd"
 		},
