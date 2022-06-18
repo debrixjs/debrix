@@ -39,51 +39,39 @@ node = _{ !("</" | "->") ~ (comment | element | text | text_binding | flow_contr
 
 // -- Immutable Javascript Expressions --
 expression = {
-	// Operator Between Expressions
-	single_expression ~ (
+	binary_expression |
+	new_expression |
+	call_expression |
+	unary_expression | 
+	"(" ~ expression ~ ")" |
+	member_expression |
+	ident |
+	literal
+}
+new_expression = { "new" ~ (member_expression | ident | literal) ~ expression_arguments? }
+call_expression = { (member_expression | ident | literal) ~ expression_arguments }
+	expression_arguments = { "(" ~ (expression ~ ",")* ~ expression? ~ ")" }
+unary_expression = { unary_operator ~ expression }
+	unary_operator = ${ "!" | "~" | "-" | "+" | "typeof" | "void" }
+function_declaration = { ("(" ~ (ident ~ ",")* ~ ident? ~ ")")? ~ "=>" ~ expression }
+array_declaration = { "[" ~ (expression ~ ",")* ~ expression? ~ "]" }
+object_declarartion = { "{" ~ (object_pair ~ ",")* ~ object_pair? ~ "}" }
+	object_pair = { literal | (string | "[" ~ expression ~ "]") ~ (":" | "=>") ~ expression }
+binary_expression = { "(" ~ expression ~ ")" ~ binary_operator ~ expression }
+	binary_operator = ${
 		// Mathematical Operators
 		"**" | "*" | "/" | "%" | "+" | "-" |
-
 		// Logical Operators
 		"&&" | "||" | "===" | "!==" | "==" | "!=" |
-
 		// Bitwise Operators
 		"<<" | ">>" | ">>>" | "&" | "^" | "|" |
-
 		// Relational Operators
 		"<=" | ">=" | "<" | ">" | "instanceof" | "in"
-	) ~ expression |
-
-	single_expression
-}
-single_expression = _{
-	// Instanciation
-	"new" ~ (identifiable | literal) ~ expression_call? |
-
-	// Function Calling
-	(identifiable | literal) ~ expression_call |
-
-	// Left-Hand-Side Operators
-	("!" | "~" | "-" | "+" | "typeof" | "void") ~ expression |
-
-	// Immutable Function Declaration
-	("(" ~ (ident ~ ",")* ~ ident? ~ ")")? ~ "=>" ~ expression |
-
-	// Array Declaration
-	"[" ~ (expression ~ ",")* ~ expression? ~ "]" |
-
-	// Object Declaration
-	"{" ~ (object_pair ~ ",")* ~ object_pair? ~ "}" |
-
-	// Grouping
-	"(" ~ expression ~ ")" |
-
-	// Literal, Identifier or Member
-	(identifiable | literal)
-}
-	expression_call = { "(" ~ (expression ~ ",")* ~ expression? ~ ")" }
-	object_pair = { literal | (string | "[" ~ expression ~ "]") ~ (":" | "=>") ~ expression }
-	identifiable = { (ident ~ "?"? ~ ".")* ~ ident }
+	}
+member_expression = { "(" ~ expression ~ ")" ~ (member | optional_memeber | computed_member) }
+	member = { "." ~ ident }
+	optional_memeber = { "?." ~ ident }
+	computed_member = { "[" ~ expression ~ "]" }
 
 // -- Comment --
 comment = ${ "<!--" ~ comment_data ~ "-->" }
