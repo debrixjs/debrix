@@ -65,7 +65,7 @@ impl Build {
 							self.chunks.bind.append("(");
 							self.chunks.bind.append(&name.as_str());
 							self.chunks.bind.append(", ");
-							let expression = self.build_expression(value).source;
+							let expression = self.build_expression_as_reference(value).source;
 							self.chunks.bind.append(&expression);
 							self.chunks.bind.append(");");
 						}
@@ -80,7 +80,7 @@ impl Build {
 							self.chunks.bind.append("(");
 							self.chunks.bind.append(&ident.as_str());
 							self.chunks.bind.append(", ");
-							let expression = self.build_expression(value).source;
+							let expression = self.build_expression_as_reference(value).source;
 							self.chunks.bind.append(&expression);
 							self.chunks.bind.append(");\n");
 						}
@@ -119,7 +119,7 @@ impl Build {
 				let bind_text = self.import("bind_text", DEBRIX_INTERNAL);
 				self.chunks.bind.append(&bind_text);
 				self.chunks.bind.append("(");
-				let expression = self.build_expression(expression).source;
+				let expression = self.build_expression_as_reference(expression).source;
 				self.chunks.bind.append(&expression);
 				self.chunks.bind.append(");\n");
 
