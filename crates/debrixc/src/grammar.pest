@@ -38,26 +38,40 @@ children = { node* }
 node = _{ !("</" | "->") ~ (comment | element | text | text_binding | flow_control) }
 
 // -- Immutable Javascript Expressions --
-expression = {
-	binary_expression |
+expression = { (right ~ left?)* }
+
+right = _{
+	ident |
+	literal |
+
 	new_expression |
 	call_expression |
-	unary_expression | 
-	"(" ~ expression ~ ")" |
-	member_expression |
-	ident |
-	literal
+	unary_expression |
+	function_declaration |
+	array_declaration |
+	object_declarartion
 }
+
 new_expression = { "new" ~ (member_expression | ident | literal) ~ expression_arguments? }
+
 call_expression = { (member_expression | ident | literal) ~ expression_arguments }
 	expression_arguments = { "(" ~ (expression ~ ",")* ~ expression? ~ ")" }
+
 unary_expression = { unary_operator ~ expression }
 	unary_operator = ${ "!" | "~" | "-" | "+" | "typeof" | "void" }
+
 function_declaration = { ("(" ~ (ident ~ ",")* ~ ident? ~ ")")? ~ "=>" ~ expression }
+
 array_declaration = { "[" ~ (expression ~ ",")* ~ expression? ~ "]" }
+
 object_declarartion = { "{" ~ (object_pair ~ ",")* ~ object_pair? ~ "}" }
 	object_pair = { literal | (string | "[" ~ expression ~ "]") ~ (":" | "=>") ~ expression }
-binary_expression = { "(" ~ expression ~ ")" ~ binary_operator ~ expression }
+
+left = _{
+	member_expression
+}
+	
+binary_expression = { binary_operator ~ expression }
 	binary_operator = ${
 		// Mathematical Operators
 		"**" | "*" | "/" | "%" | "+" | "-" |
@@ -68,7 +82,8 @@ binary_expression = { "(" ~ expression ~ ")" ~ binary_operator ~ expression }
 		// Relational Operators
 		"<=" | ">=" | "<" | ">" | "instanceof" | "in"
 	}
-member_expression = { "(" ~ expression ~ ")" ~ (member | optional_memeber | computed_member) }
+
+member_expression = { (member | optional_memeber | computed_member) }
 	member = { "." ~ ident }
 	optional_memeber = { "?." ~ ident }
 	computed_member = { "[" ~ expression ~ "]" }

@@ -14,11 +14,9 @@ impl Build {
 		match pair.as_rule() {
 			Rule::binary_expression => {
 				let mut inner = pair.into_inner();
-				let left = inner.next().unwrap();
 				let operator = inner.next().unwrap();
 				let right = inner.next().unwrap();
 
-				chunk.append_chunk(self.build_expression(left));
 				chunk.append(" ");
 				chunk.append(operator.as_str());
 				chunk.append(" ");
@@ -84,9 +82,6 @@ impl Build {
 
 			Rule::member_expression => {
 				let mut inner = pair.into_inner();
-				let target = inner.next().unwrap();
-
-				chunk.append_chunk(self.build_expression(target));
 
 				while let Some(member) = inner.next() {
 					let rule = member.as_rule();
