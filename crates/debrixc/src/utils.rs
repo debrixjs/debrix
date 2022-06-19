@@ -5,7 +5,7 @@ pub fn format_lines(string: &str, indent: usize) -> String {
 			if line.trim() == "" {
 				"".to_owned()
 			} else {
-				"    ".repeat(indent) + line.trim()
+				"\t".repeat(indent) + line.trim()
 			}
 		})
 		.collect::<Vec<String>>()
