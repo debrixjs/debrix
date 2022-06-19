@@ -38,7 +38,7 @@ children = { node* }
 node = _{ !("</" | "->") ~ (comment | element | text | text_binding | flow_control) }
 
 // -- Immutable Javascript Expressions --
-expression = { (right ~ left?)* }
+expression = { (right ~ left?)+ }
 
 right = _{
 	ident |
