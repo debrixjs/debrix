@@ -62,7 +62,7 @@ impl Build {
 
 				if index == imports.len() - 1 {
 					if has_block {
-						self.chunks.head.append("} ");
+						self.chunks.head.append(" } ");
 					} else {
 						self.chunks.head.append(" ");
 					}
