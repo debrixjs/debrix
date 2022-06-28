@@ -1,7 +1,7 @@
 import { Accessor } from "./binding";
 import EventEmitter from "./event-emitter";
 import { Revokable } from "./lifecycle";
-import { Subscribable, Subscription, SubscriptionListener } from "./subscription";
+import { Subscribable, Subscription, SubscriptionListener, UnknownSubscriptionListener } from "./subscription";
 
 export function prop(target: Model, key: string): void {
 	Object.defineProperty(target, key, {
@@ -78,32 +78,64 @@ export abstract class Model<Props extends object = Record<string, unknown>> impl
 	 * subscription.revoke()
 	 * ```
 	 */
-	$resubscribe(listener: SubscriptionListener): () => Subscription {
+	$subscribeWhile(inner: () => void, listener: UnknownSubscriptionListener): Subscription {
 		const deps: [get: Ref[], del: Ref[]] = [[], []];
 		const revs: [get: Revokable, del: Revokable] = [
 			this.#events.on("get", ref => deps[0].push(ref)),
 			this.#events.on("delete", ref => deps[1].push(ref))
 		];
-		return () => {
-			for (const rev of revs) rev.revoke();
-			const subs = [
-				this.#subscribe(deps[0], value => listener(value)),
-				this.#subscribe(deps[1], (value, refx) => {
-					deps[1].splice(deps[1].findIndex(refy => isSameRef(refx, refy)), 1);
-					listener(value);
-				})
-			];
-			return {
-				revoke() {
-					for (const sub of subs) sub.revoke();
-				}
-			};
+
+		inner();
+
+		for (const rev of revs) rev.revoke();
+		const subs = [
+			this.#subscribe(deps[0], () => listener()),
+			this.#subscribe(deps[1], (_value, refx) => {
+				deps[1].splice(deps[1].findIndex(refy => isSameRef(refx, refy)), 1);
+				listener();
+			})
+		];
+
+		return {
+			revoke() {
+				for (const sub of subs) sub.revoke();
+			}
 		};
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	$reference<T>(target: T): Accessor<T> {
-		throw new Error("'$reference' was never implemented by proxy!");
+	$accessor<T>(target: T): Accessor<T> {
+		throw new Error(`'${this.$accessor.name}' is not implemented!`);
+	}
+
+	$computed<T>(callback: () => T): Accessor<T> {
+		const listeners: (SubscriptionListener | null)[] = [];
+		let prev: Subscription | undefined;
+		const accessor: Accessor<T> = {
+			get: () => {
+				prev?.revoke();
+
+				let value: T;
+				prev = this.$subscribeWhile(
+					() => value = callback(),
+					() => {
+						const value = accessor.get();
+						for (const listener of listeners)
+							listener?.(value);
+					}
+				);
+				return value!;
+			},
+			subscribe(listener) {
+				const index = listeners.push(listener) - 1;
+				return {
+					revoke() {
+						listeners[index] = null;
+					}
+				};
+			}
+		};
+		return accessor;
 	}
 
 	constructor(protected props?: Props) {
@@ -117,20 +149,19 @@ export abstract class Model<Props extends object = Record<string, unknown>> impl
 				get: (target, key, receiver) => {
 					const ref = getRef(key);
 
-					if (!parent) {
-						// All properties will return refs instead of values.
-						// REMEMBER! 'returnRef' needs to be set to false as soon as the
-						// function is no longer expected to receive refs.
-						returnRef = true;
+					if (returnRef) return ref;
 
-						if (key === "$subscribe") {
+					if (!parent) {
+						if (key === this.$subscribe.name) {
+							returnRef = true;
 							return (...args: unknown[]) => {
 								returnRef = false;
 								return (this.$subscribe as (...args: unknown[]) => unknown)(...args);
 							};
 						}
 
-						if (key === "$reference") {
+						if (key === this.$accessor.name) {
+							returnRef = true;
 							return (ref: Ref) => {
 								returnRef = false;
 
@@ -157,8 +188,6 @@ export abstract class Model<Props extends object = Record<string, unknown>> impl
 						}
 					}
 
-					if (returnRef) return ref;
-
 					const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
 					if (!descriptor) return undefined;
 					this.#events.trigger("get", ref);
@@ -172,15 +201,18 @@ export abstract class Model<Props extends object = Record<string, unknown>> impl
 						// This trigger the "virtual" set. The value has not changed yet because it is a computed.
 						// Instead the "set" event is triggered to let others know that the computed will possibly
 						// return another result, because the variables/factors has changed.
-						const endResub = this.$resubscribe(value => this.#events.trigger("set", ref, value));
-						let value = Reflect.get(target, key, receiver);
+						let value: unknown;
+						const subscription = this.$subscribeWhile(
+							() => value = Reflect.get(target, key, receiver),
+							() => this.#events.trigger("set", ref, value)
+						);
+
+						// Remember the subscription so that it can be revoked when getting the property.
+						this.#resubscriptions.set(ref, subscription);
 
 						// Continue to trap child objects to all capture events.
 						if (value !== null && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, WRAPPED))
 							value = wrap(value, ref);
-
-						// Remember the subscription so that it can be revoked when getting the property. See code above.
-						this.#resubscriptions.set(ref, endResub());
 
 						return value;
 					} else {

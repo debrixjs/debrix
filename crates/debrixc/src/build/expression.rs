@@ -19,22 +19,23 @@ impl Build {
 		let right = inner.next();
 
 		fn is_ident(left: &Pair<Rule>, right: &Option<Pair<Rule>>) -> bool {
-			left.as_rule() == Rule::literal && right.is_none()
+			left.as_rule() == Rule::ident && right.is_none()
 		}
 
 		fn is_member(_left: &Pair<Rule>, right: &Option<Pair<Rule>>) -> bool {
 			right.is_some() && right.as_ref().unwrap().as_rule() == Rule::member_expression
 		}
 
-		if inner.peek().is_none() && is_ident(&left, &right) || is_member(&left, &right) {
-			let mut chunk = Chunk::new();
-			chunk.append("this.$reference(");
-			chunk.append_chunk(expr_chunk);
-			chunk.append(");");
-			return chunk;
+		let mut chunk = Chunk::new();
+		if inner.peek().is_none() && (is_ident(&left, &right) || is_member(&left, &right)) {
+			chunk.append("this.$accessor(");
+		} else {
+			chunk.append("this.$computed(() => ");
 		}
+		chunk.append_chunk(expr_chunk);
+		chunk.append(")");
 
-		expr_chunk
+		chunk
 	}
 
 	pub fn build_expression(&mut self, expression: Pair<Rule>) -> Chunk {
@@ -142,7 +143,12 @@ impl Build {
 					}
 				}
 
-				Rule::ident | Rule::literal => {
+				Rule::ident => {
+					chunk.append("this.");
+					chunk.append(pair.as_str());
+				}
+
+				Rule::literal => {
 					chunk.append(pair.as_str());
 				}
 
