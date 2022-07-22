@@ -1,13 +1,6 @@
-pub fn format_lines(string: &str, indent: usize) -> String {
-	string
-		.lines()
-		.map(|line| {
-			if line.trim() == "" {
-				"".to_owned()
-			} else {
-				"\t".repeat(indent) + line.trim()
-			}
-		})
-		.collect::<Vec<String>>()
-		.join("\n")
+pub fn str_val(string: &str) -> &str {
+    let mut chars = string.chars();
+    chars.next();
+    chars.next_back();
+    chars.as_str()
 }

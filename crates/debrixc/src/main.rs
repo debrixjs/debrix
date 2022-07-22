@@ -6,6 +6,6 @@ fn main() {
 	let stdin = io::stdin();
 	let mut handle = stdin.lock();
 	handle.read_to_string(&mut input).unwrap();
-	let result = build(&input);
+	let result = build(&input).unwrap();
 	println!("{}", result.source);
 }

@@ -2,7 +2,7 @@ use neon::prelude::*;
 
 fn build(mut cx: FunctionContext) -> JsResult<JsObject> {
 	let input = cx.argument::<JsString>(0)?;
-	let result = debrixc::build(&input.value(&mut cx));
+	let result = debrixc::build(&input.value(&mut cx)).unwrap();
 
 	let result_js = cx.empty_object();
 	let source_js = cx.string(result.source);

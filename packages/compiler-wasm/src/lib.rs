@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn build(input: &str) -> js_sys::Object {
-	let result = debrixc::build(input);
+	let result = debrixc::build(input).unwrap();
 	let js_result = js_sys::Object::new();
 	js_sys::Reflect::set(&js_result, &"source".into(), &result.source.into()).unwrap();
 	let js_mappings = js_sys::Array::new();

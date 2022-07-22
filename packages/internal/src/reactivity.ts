@@ -1,16 +1,10 @@
-import type { Binder, Lifecycle, Revokable } from "debrix";
+import type { Accessor, Binder, Lifecycle } from "debrix";
 
-export interface SubscribableProperty<T> {
-	subscribe(cb: (v: T) => void): Revokable
-	get(): T
-	set?(v: T): void
-}
-
-export function bind<T, N extends ChildNode>(node: N, binder: Binder<T, N>, { subscribe, get, set }: SubscribableProperty<T>): Lifecycle {
-	const binding = binder(node, { get, set });
+export function bind<T, N extends ChildNode>(node: N, binder: Binder<T, N>, accessor: Accessor<T>): Lifecycle {
+	const binding = binder(node, accessor);
 	// Create a subscription even if the update method doesn't exists (yet).
 	// The binding might add the method later.
-	const subscription = subscribe(() => binding.update?.());
+	const subscription = accessor.observe(() => binding.update?.());
 	return {
 		destroy() {
 			subscription.revoke();
@@ -19,9 +13,9 @@ export function bind<T, N extends ChildNode>(node: N, binder: Binder<T, N>, { su
 	};
 }
 
-export function bind_text(node: Text, { subscribe, get }: SubscribableProperty<string>): Lifecycle {
-	const subscription = subscribe(v => node.textContent = v);
-	node.textContent = get();
+export function bind_text(node: Text, accessor: Accessor<string>): Lifecycle {
+	const subscription = accessor.observe(() => node.textContent = accessor.get());
+	node.textContent = accessor.get();
 	return {
 		destroy() {
 			subscription.revoke();
@@ -29,11 +23,13 @@ export function bind_text(node: Text, { subscribe, get }: SubscribableProperty<s
 	};
 }
 
-export function bind_attr<N extends Element>(node: N, attr: string, { subscribe, get }: SubscribableProperty<string | undefined>): Lifecycle {
-	const render = (value: string | undefined) =>
-		value === undefined ? node.removeAttribute(attr) : node.setAttribute(attr, value);
-	const subscription = subscribe(render);
-	render(get());
+export function bind_attr<N extends Element>(node: N, attr: string, accessor: Accessor<string | undefined>): Lifecycle {
+	const render = () => {
+		const value = accessor.get();
+		return value === undefined ? node.removeAttribute(attr) : node.setAttribute(attr, value);
+	};
+	const subscription = accessor.observe(render);
+	render();
 	return {
 		destroy() {
 			subscription.revoke();
