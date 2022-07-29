@@ -1,5 +1,5 @@
 {
-	"name": "debrix",
+	"name": "@debrixjs/debrix",
 	"version": "0.1.0-0",
 	"description": "Efficient progressive component-based Javascript library",
 	"author": "Elias Skogevall",
