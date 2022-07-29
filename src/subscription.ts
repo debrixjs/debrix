@@ -1,8 +1,6 @@
-import { Revokable } from "./lifecycle";
+import { Revokable } from './lifecycle';
 
-export interface SubscriptionListener {
-	(): void
-}
+export type SubscriptionListener = () => void;
 
 export interface Subscription extends Revokable {
 }

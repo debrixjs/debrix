@@ -1,4 +1,4 @@
-import { Revokable } from "./lifecycle";
+import { Revokable } from './lifecycle';
 
 export default class EventEmitter<EventMap extends { [key in string]: unknown[] }> {
 	protected listeners = new Map<keyof EventMap, ((...args: EventMap[any]) => void)[]>();
@@ -14,6 +14,7 @@ export default class EventEmitter<EventMap extends { [key in string]: unknown[] 
 
 		return {
 			revoke: () => {
+				// eslint-disable-next-line @typescript-eslint/no-dynamic-delete
 				delete listeners[index];
 			}
 		};

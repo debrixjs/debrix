@@ -1,6 +1,4 @@
-export interface Task {
-	(...args: any): any
-}
+export type Task = (...args: any) => any;
 
 export default class Scheduler {
 	protected queue = new Set<Task>();
@@ -8,7 +6,7 @@ export default class Scheduler {
 	protected flushing = false;
 
 	protected next(cb: () => void) {
-		this.microtask.then(cb);
+		void this.microtask.then(cb);
 	}
 
 	flush() {
