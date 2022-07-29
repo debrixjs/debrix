@@ -1,7 +1,7 @@
 use pest::{Parser, iterators::Pairs};
 
 #[derive(Parser)]
-#[grammar = "debrix.pest"]
+#[grammar = "parser/grammar.pest"]
 struct PestParser;
 
 pub use Rule as R;
