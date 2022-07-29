@@ -1,0 +1,18 @@
+{
+	"license": "MIT",
+	"workspaces": [
+		"packages/*"
+	],
+	"scripts": {
+		"build": "npm run build --workspaces",
+		"build:release": "npm run build:release --workspaces --if-present",
+		"lint": "eslint --ext .js,.ts packages/",
+		"test": "cargo test && npm run test --workspaces --if-present"
+	},
+	"devDependencies": {
+		"@debrixjs/eslint-config": "^0.1.0",
+		"@typescript-eslint/eslint-plugin": "^5.31.0",
+		"@typescript-eslint/parser": "^5.31.0",
+		"eslint": "^8.20.0"
+	}
+}

@@ -1,0 +1,34 @@
+{
+	"name": "@debrixjs/compiler",
+	"version": "0.1.0-0",
+	"description": "Native node version of debrix compiler (debrixc).",
+	"keywords": [
+		"debrixc",
+		"debrix",
+		"compiler",
+		"node"
+	],
+	"homepage": "https://github.com/debrixjs/compiler/tree/main/packages/compiler#readme",
+	"repository": "https://github.com/debrixjs/compiler",
+	"license": "MIT",
+	"author": "Elias Skogevall",
+	"main": "./index.js",
+	"types": "./index.d.ts",
+	"bin": {
+		"debrixc": "./bin/debrixc"
+	},
+	"scripts": {
+		"build": "cargo-cp-artifact -a cdylib debrixc-js lib/debrixc.node -- cargo build --message-format=json-render-diagnostics",
+		"build:release": "npm run build -- --release",
+		"prepublishOnly": "npm run build:release"
+	},
+	"devDependencies": {
+		"cargo-cp-artifact": "0.1.x"
+	},
+	"peerDependencies": {
+		"@debrixjs/internal": ">=0.1.0-0"
+	},
+	"engines": {
+		"node": ">=10"
+	}
+}

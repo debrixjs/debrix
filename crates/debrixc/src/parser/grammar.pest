@@ -1,0 +1,92 @@
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+COMMENT = _{ ("/*" ~ (!"*/" ~ ANY)* ~ "*/") | ("//" ~ (!NEWLINE ~ ANY)*) }
+
+document = _{ SOI ~ import* ~ element ~ EOI }
+
+string = ${ PUSH("\"" | "'") ~ (!PEEK ~ ANY | "\\" ~ PEEK)* ~ POP }
+number = ${ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* ~ ("." ~ ASCII_DIGIT+)? }
+boolean = { "true" | "false" }
+literal = _{ string | number | boolean }
+ident = ${ ASCII_ALPHA ~ (ASCII_ALPHA | ASCII_DIGIT)* }
+target = _{ ident | "*" }
+
+import = { "using" ~ clause ~ "from" ~ string ~ ";"? }
+clause = { usage_specifier | (ident ~ clause_rename? ~ usage_specifier?) }
+clause_rename = { "as" ~ ident }
+usage_specifier = { "for" ~ ident }
+
+expression = { (right ~ left?)+ }
+
+right = _{
+	ident |
+	literal |
+
+	new_expression |
+	call_expression |
+	unary_expression |
+	function_declaration |
+	array_declaration |
+	object_declarartion
+}
+
+new_expression = { "new" ~ (member_expression | ident | literal) ~ expression_arguments? }
+
+call_expression = { (member_expression | ident | literal) ~ expression_arguments }
+	expression_arguments = { "(" ~ (expression ~ ",")* ~ expression? ~ ")" }
+
+unary_expression = { unary_operator ~ expression }
+	unary_operator = ${ "!" | "~" | "-" | "+" | "typeof" | "void" }
+
+function_declaration = { ("(" ~ (ident ~ ",")* ~ ident? ~ ")")? ~ "=>" ~ expression }
+
+array_declaration = { "[" ~ (expression ~ ",")* ~ expression? ~ "]" }
+
+object_declarartion = { "{" ~ (object_pair ~ ",")* ~ object_pair? ~ "}" }
+	object_pair = { literal | (string | "[" ~ expression ~ "]") ~ (":" | "=>") ~ expression }
+
+left = _{
+	member_expression
+}
+	
+binary_expression = { binary_operator ~ expression }
+	binary_operator = ${
+		// Mathematical Operators
+		"**" | "*" | "/" | "%" | "+" | "-" |
+		// Logical Operators
+		"&&" | "||" | "===" | "!==" | "==" | "!=" |
+		// Bitwise Operators
+		"<<" | ">>" | ">>>" | "&" | "^" | "|" |
+		// Relational Operators
+		"<=" | ">=" | "<" | ">" | "instanceof" | "in"
+	}
+
+member_expression = { (member | optional_memeber | computed_member) }
+	member = { "." ~ ident }
+	optional_memeber = { "?." ~ ident }
+	computed_member = { "[" ~ expression ~ "]" }
+
+comment = ${ "<!--" ~ comment_data ~ "-->" }
+comment_data = { (!"-->" ~ ANY)* }
+
+element = {
+	"<" ~ tag_name ~ tag_inner ~ "/>" |
+	"<" ~ PUSH(tag_name) ~ tag_inner ~ ">" ~ children ~ "</" ~ POP ~ ">"
+}
+	tag_name = ${ (ASCII_ALPHA | ASCII_DIGIT)+ }
+	tag_inner = { attribute* ~ bindings? ~ attribute* }
+
+	attribute = _{ attribute_binding | static_attribute }
+	static_attribute = { attribute_name ~ ("=" ~ string)? }
+	attribute_binding = { attribute_name ~ "=" ~ "(" ~ expression ~ ")" }
+	attribute_name = ${ (ASCII_ALPHA | ASCII_DIGIT)+ }
+
+	bindings = _{ "(" ~ (binding ~ ",")* ~ binding? ~ ")" }
+	binding = { ident ~ ":" ~ expression }
+	
+	children = { (!("</" | "->") ~ (comment | element | text | text_binding | flow_control))* }
+
+text = ${ (!("<" | ">" | "{" | "}" | "<!--" | "-->") ~ ANY)+ }
+
+text_binding = ${ "{" ~ expression ~ "}" }
+
+flow_control = { "<-" ~ ident ~ expression ~ ":" ~ children ~ "->" }

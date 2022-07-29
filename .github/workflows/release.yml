@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: 
+          - target: x86_64-pc-windows-gnu
+            archive_name: debrix-windows-x86_64.exe
+          - target: x86_64-unknown-linux-musl
+            archive_name: debrix-linux-x86_64
+          - target: x86_64-apple-darwin
+            archive_name: debrix-darwin-x86_64
+    steps:
+      - uses: actions/checkout@master
+      - id: build
+        uses: rust-build/rust-build.action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARCHIVE_NAME: ${{ matrix.archive_name }}
+        with:
+          RUSTTARGET: ${{ matrix.target }}
+      - uses: actions/upload-artifact@v3
+        with:
+          path: |
+            ${{ steps.build.outputs.BUILT_ARCHIVE }}
+            ${{ steps.build.outputs.BUILT_CHECKSUM }}
+          if-no-files-found: error
+      - uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          generate_release_notes: true
+          files: |
+            debrix-windows-x86_64.exe
+            debrix-linux-x86_64
+            debrix-darwin-x86_64
