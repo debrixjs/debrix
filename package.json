@@ -10,7 +10,7 @@
 	"scripts": {
 		"build": "npm run build --workspaces --if-present",
 		"release": "npm run release --workspaces --if-present",
-		"test": "npm run test --workspaces --if-present",
+		"test": "cargo test && npm run test --workspaces --if-present",
 		"lint": "npm run lint --workspaces --if-present && eslint --ext .js,.ts packages/"
 	},
 	"devDependencies": {
