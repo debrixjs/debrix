@@ -1,18 +1,21 @@
 {
-	"compilerOptions": {
-		"target": "ESNext",
-		"moduleResolution": "node",
-		"lib": ["ESNext"],
-		"types": [],
+    "include": ["src"],
+    "compilerOptions": {
+		"module": "ES2015",
+        "target": "ES2015",
+        "lib": ["ES2015", "DOM"],
+        "rootDir": "src",
+		"strict": true,
 		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true,
+		"types": [],
 		"forceConsistentCasingInFileNames": true,
 		"isolatedModules": true,
 		"noImplicitOverride": true,
 		"noPropertyAccessFromIndexSignature": true,
 		"noUncheckedIndexedAccess": true,
-		"strict": true,
 		"stripInternal": true,
 		"useDefineForClassFields": true,
 		"useUnknownInCatchVariables": true
-	}
+    }
 }

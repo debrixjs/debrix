@@ -1,21 +1,31 @@
 {
-	"license": "MIT",
-	"workspaces": [
-		"packages/compiler",
-		"packages/compiler-wasm",
-		"packages/runtime",
-		"packages/internal",
-		"packages/*"
+	"name": "debrix",
+	"version": "0.1.0",
+	"description": "Efficient progressive component-based Javascript library",
+	"author": "Elias Skogevall",
+	"main": "./index.js",
+	"module": "./index.mjs",
+	"types": "./types/index.d.ts",
+	"files": [
+		"./index.js",
+		"./index.mjs",
+		"./types/"
 	],
 	"scripts": {
-		"build": "npm run build --workspaces --if-present",
-		"release": "npm run release --workspaces --if-present",
-		"test": "cargo test && npm run test --workspaces --if-present",
-		"lint": "npm run lint --workspaces --if-present && eslint --ext .js,.ts packages/"
+		"build": "rollup -c && tsc --declaration --emitDeclarationOnly --outDir types",
+		"release": "rollup -c --environment RELEASE && tsc --declaration --emitDeclarationOnly --outDir types",
+		"lint": "eslint . --ext .js,.ts",
+		"prepublishOnly": "npm run lint && npm run release"
 	},
 	"devDependencies": {
-		"@typescript-eslint/eslint-plugin": "^5.28.0",
-		"@typescript-eslint/parser": "^5.28.0",
-		"eslint": "^8.17.0"
+		"@debrixjs/eslint-config": "^0.1.0",
+		"@rollup/plugin-node-resolve": "13.x",
+		"@rollup/plugin-typescript": "8.x",
+		"@typescript-eslint/eslint-plugin": "^5.31.0",
+		"@typescript-eslint/parser": "^5.31.0",
+		"eslint": "^8.20.0",
+		"rollup": "2.x",
+		"tslib": "2.x",
+		"typescript": "4.x"
 	}
 }
