@@ -15,8 +15,11 @@
 	"main": "./index.js",
 	"types": "./index.d.ts",
 	"files": [
-		"lib/index.js",
-		"lib/index.d.ts"
+		"./lib/wasm/debrixc_wasm_bg.wasm",
+		"./lib/wasm/debrixc_wasm.js",
+		"./lib/mod.js",
+		"./index.js",
+		"./index.d.ts"
 	],
 	"scripts": {
 		"build": "wasm-pack -q build -d lib/wasm -t web --no-typescript && rollup -c",
