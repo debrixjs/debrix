@@ -17,6 +17,14 @@
 	"bin": {
 		"debrixc": "./bin/debrixc"
 	},
+	"files": [
+		"./bin/",
+		"./lib/",
+		"./index.js",
+		"./index.mjs",
+		"./index.d.ts",
+		"./install.js"
+	],
 	"scripts": {
 		"build": "cargo-cp-artifact -a cdylib debrixc-js lib/debrixc.node -- cargo build --message-format=json-render-diagnostics",
 		"build:release": "npm run build -- --release",
