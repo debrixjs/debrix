@@ -1,6 +1,6 @@
 {
 	"name": "@debrixjs/compiler",
-	"version": "0.1.0-0",
+	"version": "0.1.0-1",
 	"description": "Native node version of debrix compiler (debrixc).",
 	"keywords": [
 		"debrixc",
