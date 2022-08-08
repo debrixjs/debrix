@@ -341,3 +341,18 @@ fn test_scan_ellipsis() {
 fn test_scan_semicolon() {
 	assert_eq!(tokenize(";"), Token::Semicolon);
 }
+
+#[test]
+fn test_skip_whitespace() {
+	assert_eq!(tokenize(" foo"), Token::Identifier("foo".to_string()));
+}
+
+#[test]
+fn test_skip_comment() {
+	assert_eq!(tokenize("//foo\nbar"), Token::Identifier("bar".to_string()));
+}
+
+#[test]
+fn test_skip_multiline_comment() {
+	assert_eq!(tokenize("/*\nfoo\n*/bar"), Token::Identifier("bar".to_string()));
+}

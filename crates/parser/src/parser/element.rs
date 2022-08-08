@@ -7,7 +7,7 @@ impl Parser {
 		self.expect('<')?;
 
 		let tag = self.parse_tag_name()?;
-		self.skip_whitespace();
+		self.skip_whitespace()?;
 
 		let mut self_closing = false;
 		let mut attributes = Vec::new();
@@ -122,18 +122,18 @@ impl Parser {
 		let start = self.iter.position();
 
 		let name = self.parse_attribute_name()?;
-		self.skip_whitespace();
+		self.skip_whitespace()?;
 
 		self.expect('=')?;
-		self.skip_whitespace();
+		self.skip_whitespace()?;
 
 		if let Some(ch) = self.iter.peek() {
 			if ch == '(' {
 				self.iter.next();
-				self.skip_whitespace();
+				self.skip_whitespace()?;
 
 				let expr = self.parse_javascript_expression(&[')'])?;
-				self.skip_whitespace();
+				self.skip_whitespace()?;
 
 				self.expect(')')?;
 
@@ -197,7 +197,7 @@ impl Parser {
 		let start = self.iter.position();
 
 		self.expect('(')?;
-		self.skip_whitespace();
+		self.skip_whitespace()?;
 
 		let mut bindings = Vec::new();
 
@@ -208,11 +208,11 @@ impl Parser {
 			}
 
 			bindings.push(self.parse_binding()?);
-			self.skip_whitespace();
+			self.skip_whitespace()?;
 
 			if ch == ',' {
 				self.iter.next();
-				self.skip_whitespace();
+				self.skip_whitespace()?;
 				continue;
 			} else {
 				self.expect(')')?;
@@ -231,13 +231,13 @@ impl Parser {
 		let start = self.iter.position();
 
 		let name = self.parse_identifier()?;
-		self.skip_whitespace();
+		self.skip_whitespace()?;
 
 		self.expect(':')?;
-		self.skip_whitespace();
+		self.skip_whitespace()?;
 
 		let expr = self.parse_javascript_expression(&[',', ')'])?;
-		self.skip_whitespace();
+		self.skip_whitespace()?;
 
 		let end = self.iter.position();
 

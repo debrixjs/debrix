@@ -19,14 +19,49 @@ impl Parser {
 		}
 	}
 
-	fn skip_whitespace(&mut self) {
-		while let Some(ch) = self.iter.peek() {
+	fn skip_whitespace(&mut self) -> Result<(), ParserError> {
+		'consume: while let Some(ch) = self.iter.peek() {
 			if ch.is_whitespace() {
 				self.iter.next();
-			} else {
-				break;
+				continue;
 			}
+
+			if ch == '/' {
+				if let Some(ch) = self.iter.peek_next() {
+					if ch == '/' {
+						self.iter.skip_n(2);
+
+						while let Some(ch) = self.iter.next() {
+							if ch == '\n' {
+								continue 'consume;
+							}
+						}
+						
+						// Reached EOF, which is also the end of the comment
+						return Ok(());
+					} else if ch == '*' {
+						self.iter.skip_n(2);
+
+						while let Some(ch) = self.iter.next() {
+							if ch == '*' {
+								if let Some(ch) = self.iter.peek() {
+									if ch == '/' {
+										self.iter.next();
+										continue 'consume;
+									}
+								}
+							}
+						}
+
+						return Err(ParserError::eof(self.iter.position()));
+					}
+				}
+			}
+
+			break;
 		}
+		
+		return Ok(());
 	}
 
 	fn expect(&mut self, ch: char) -> Result<(), ParserError> {
@@ -35,11 +70,7 @@ impl Parser {
 				Ok(())
 			} else {
 				Err(ParserError::expected(
-					Location::from_length(
-						self.iter.offset(),
-						1,
-						self.iter.borrow_content(),
-					),
+					Location::from_length(self.iter.offset(), 1, self.iter.borrow_content()),
 					&[&ch.to_string()],
 				))
 			}
@@ -137,5 +168,37 @@ impl Parser {
 			Location::from_length(self.iter.offset(), 1, &self.iter.borrow_content()),
 			&[&self.iter.peek().unwrap().to_string()],
 		))
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	// NOTE! This test module should only contain tests specific to the methods defined in this file.
+	// Methods as well as their tests which are not common utillity should be specified in a seperate file.
+
+	#[test]
+	fn test_skip_whitespace() {
+		let mut parser = Parser::new("foo bar");
+		parser.iter.skip_n(3);
+		parser.skip_whitespace().unwrap();
+		assert_eq!(parser.iter.peek(), Some('b'));
+	}
+
+	#[test]
+	fn test_skip_comment() {
+		let mut parser = Parser::new("foo//bar\nbaz");
+		parser.iter.skip_n(3);
+		parser.skip_whitespace().unwrap();
+		assert_eq!(parser.iter.peek(), Some('b'));
+	}
+
+	#[test]
+	fn test_skip_multiline_comment() {
+		let mut parser = Parser::new("foo/*\nbar\n*/baz");
+		parser.iter.skip_n(3);
+		parser.skip_whitespace().unwrap();
+		assert_eq!(parser.iter.peek(), Some('b'));
 	}
 }

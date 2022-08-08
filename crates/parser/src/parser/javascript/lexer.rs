@@ -84,6 +84,37 @@ pub fn scan(iter: &mut ChIter) -> Result<Token, ParserError> {
 			return scan(iter);
 		}
 
+		if ch == '/' {
+			if let Some(ch) = iter.peek_next() {
+				if ch == '/' {
+					iter.skip_n(2);
+
+					while let Some(ch) = iter.next() {
+						if ch == '\n' {
+							return scan(iter);
+						}
+					}
+
+					// Reached EOF, which is also the end of the comment
+					return Ok(Token::EOF);
+				} else if ch == '*' {
+					iter.skip_n(2);
+
+					while let Some(ch) = iter.next() {
+						if ch == '*' {
+							if let Some(ch) = iter.next() {
+								if ch == '/' {
+									return scan(iter);
+								}
+							}
+						}
+					}
+
+					return Err(ParserError::eof(iter.position()));
+				}
+			}
+		}
+
 		if ch.is_ascii_digit() {
 			return scan_number(iter);
 		}

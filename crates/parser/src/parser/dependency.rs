@@ -36,10 +36,10 @@ impl Parser {
 					} else if self.is_identifier() {
 						let ident = self.parse_identifier()?;
 
-						self.skip_whitespace();
+						self.skip_whitespace()?;
 
 						if self.try_str("as")? {
-							self.skip_whitespace();
+							self.skip_whitespace()?;
 
 							let local = self.parse_identifier()?;
 
@@ -77,7 +77,7 @@ impl Parser {
 		let start = self.iter.position();
 		self.iter.skip_n(5);
 
-		self.skip_whitespace();
+		self.skip_whitespace()?;
 
 		let mut named_specifiers: Option<NodeCollection<ast::DependencyNamedSpecifier>> = None;
 		let mut default_specifier: Option<ast::DependencyDefaultSpecifier> = None;
@@ -121,7 +121,7 @@ impl Parser {
 						self.iter.next();
 					}
 
-					self.skip_whitespace();
+					self.skip_whitespace()?;
 				} else {
 					// unexpected eof
 				}
@@ -137,11 +137,11 @@ impl Parser {
 				}
 			}
 
-			self.skip_whitespace();
+			self.skip_whitespace()?;
 
 			self.expect_str("from")?;
 
-			self.skip_whitespace();
+			self.skip_whitespace()?;
 
 			let source = self.parse_string()?;
 
