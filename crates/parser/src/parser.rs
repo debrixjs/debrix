@@ -97,7 +97,7 @@ impl Parser {
 
 		Ok(())
 	}
-	
+
 	#[allow(dead_code)]
 	fn try_ch(&mut self, ch: char) -> Result<bool, ParserError> {
 		if let Some(next) = self.iter.peek() {
@@ -126,7 +126,7 @@ impl Parser {
 		Ok(true)
 	}
 
-	fn test(&mut self, ch: char) ->Result<bool, ParserError> {
+	fn test(&mut self, ch: char) -> Result<bool, ParserError> {
 		if let Some(next) = self.iter.peek() {
 			Ok(next == ch)
 		} else {
