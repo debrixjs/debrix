@@ -57,7 +57,6 @@ fn test_parse_bool_literal() {
 	}
 }
 
-#[ignore]
 #[test]
 fn test_parse_null_literal() {
 	match parse("null") {
@@ -369,14 +368,22 @@ fn test_parse_assignment() {
 #[ignore]
 #[test]
 fn test_parse_spread() {
-	match parse("...foo") {
-		ast::Expression::Spread(expr) => match *expr.argument {
-			ast::Expression::Identifier(expr) => {
-				assert_eq!(expr.name, "foo");
+	match parse("foo(...bar)") {
+		ast::Expression::Call(expr) => {
+			assert_eq!(expr.arguments.len(), 1);
+			match expr.arguments.get(0).unwrap() {
+				ast::Expression::Spread(expr) => {
+					match expr.argument.as_ref() {
+						ast::Expression::Identifier(expr) => {
+							assert_eq!(expr.name, "bar");
+						}
+						_ => panic!("Expected Identifier"),
+					}
+				}
+				_ => panic!("Expected SpreadExpression"),
 			}
-			_ => panic!("Expected Identifier"),
 		},
-		_ => panic!("Expected SpreadExpression"),
+		_ => panic!("Expected CallExpression"),
 	}
 }
 
