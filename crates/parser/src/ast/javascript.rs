@@ -154,7 +154,7 @@ pub struct SequenceExpression {
 
 pub struct FunctionExpression {
 	pub location: Location,
-	pub parameters: Vec<Identifier>,
+	pub parameters: Vec<IdentifierExpression>,
 	pub body: Box<Expression>,
 }
 
