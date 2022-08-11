@@ -190,11 +190,81 @@ fn test_parse_new() {
 	}
 }
 
-#[ignore]
 #[test]
 fn test_parse_member() {
 	match parse("foo.bar") {
 		ast::Expression::Member(expr) => {
+			assert_eq!(expr.optional, false);
+			assert_eq!(expr.computed, false);
+			match *expr.object {
+				ast::Expression::Identifier(expr) => {
+					assert_eq!(expr.name, "foo");
+				}
+				_ => panic!("Expected Identifier"),
+			}
+			match *expr.property {
+				ast::Expression::Identifier(expr) => {
+					assert_eq!(expr.name, "bar");
+				}
+				_ => panic!("Expected Identifier"),
+			}
+		}
+		_ => panic!("Expected MemberExpression"),
+	}
+}
+
+#[test]
+fn test_parse_optional_member() {
+	match parse("foo?.bar") {
+		ast::Expression::Member(expr) => {
+			assert_eq!(expr.optional, true);
+			assert_eq!(expr.computed, false);
+			match *expr.object {
+				ast::Expression::Identifier(expr) => {
+					assert_eq!(expr.name, "foo");
+				}
+				_ => panic!("Expected Identifier"),
+			}
+			match *expr.property {
+				ast::Expression::Identifier(expr) => {
+					assert_eq!(expr.name, "bar");
+				}
+				_ => panic!("Expected Identifier"),
+			}
+		}
+		_ => panic!("Expected MemberExpression"),
+	}
+}
+
+#[test]
+fn test_parse_computed_member() {
+	match parse("foo[bar]") {
+		ast::Expression::Member(expr) => {
+			assert_eq!(expr.optional, false);
+			assert_eq!(expr.computed, true);
+			match *expr.object {
+				ast::Expression::Identifier(expr) => {
+					assert_eq!(expr.name, "foo");
+				}
+				_ => panic!("Expected Identifier"),
+			}
+			match *expr.property {
+				ast::Expression::Identifier(expr) => {
+					assert_eq!(expr.name, "bar");
+				}
+				_ => panic!("Expected Identifier"),
+			}
+		}
+		_ => panic!("Expected MemberExpression"),
+	}
+}
+
+#[test]
+fn test_parse_optional_computed_member() {
+	match parse("foo?.[bar]") {
+		ast::Expression::Member(expr) => {
+			assert_eq!(expr.optional, true);
+			assert_eq!(expr.computed, true);
 			match *expr.object {
 				ast::Expression::Identifier(expr) => {
 					assert_eq!(expr.name, "foo");

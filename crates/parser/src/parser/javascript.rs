@@ -103,8 +103,11 @@ impl Parser {
 
 				loop {
 					let start = self.iter.position();
-					let expr =
-						self.parse_javascript_expression_from(&token, token_pos.clone(), &[':', ',', '}'])?;
+					let expr = self.parse_javascript_expression_from(
+						&token,
+						token_pos.clone(),
+						&[':', ',', '}'],
+					)?;
 
 					match lexer::scan(&mut self.iter)? {
 						Token::Colon => {
@@ -176,8 +179,11 @@ impl Parser {
 				let mut token = lexer::scan(&mut self.iter)?;
 
 				loop {
-					let expr =
-						self.parse_javascript_expression_from(&token, token_pos.clone(), &[',', ']'])?;
+					let expr = self.parse_javascript_expression_from(
+						&token,
+						token_pos.clone(),
+						&[',', ']'],
+					)?;
 
 					match lexer::scan(&mut self.iter)? {
 						Token::Comma => {
@@ -316,8 +322,6 @@ impl Parser {
 		match token {
 			Token::EOF => Err(ParserError::eof(self.iter.position())),
 
-			
-
 			Token::Plus
 			| Token::Minus
 			| Token::Multiply
@@ -382,18 +386,59 @@ impl Parser {
 			}
 
 			Token::QuestionMark => {
-				let consequent = self.parse_javascript_expression(&[':'])?;
-				self.skip_whitespace()?;
-				self.expect(':')?;
-				self.skip_whitespace()?;
-				let alternate = self.parse_javascript_expression(end)?;
+				let token_start = self.iter.position();
+				let token = lexer::scan(&mut self.iter)?;
 
-				Ok(ast::Expression::Conditional(ast::ConditionalExpression {
-					location: Location::new(rstart, self.iter.position()),
-					condition: Box::new(expr),
-					consequent: Box::new(consequent),
-					alternate: Box::new(alternate),
-				}))
+				match token {
+					Token::Dot => {
+						let token_start = self.iter.position();
+						let token = lexer::scan(&mut self.iter)?;
+						let token_location = Location::new(token_start, self.iter.position());
+		
+						match token {
+							Token::Identifier(name) => Ok(ast::Expression::Member(ast::MemberExpression {
+								location: Location::new(rstart, self.iter.position()),
+								object: Box::new(expr),
+								property: Box::new(ast::Expression::Identifier(
+									ast::IdentifierExpression {
+										location: token_location,
+										name,
+									},
+								)),
+								computed: false,
+								optional: true,
+							})),
+							Token::OpenBracket => {
+								let property = self.parse_javascript_expression(&[']'])?;
+								self.expect(']')?;
+				
+								Ok(ast::Expression::Member(ast::MemberExpression {
+									location: Location::new(rstart, self.iter.position()),
+									object: Box::new(expr),
+									property: Box::new(property),
+									computed: true,
+									optional: true,
+								}))
+							}
+							_ => Err(ParserError::expected(token_location, &["identifier"])),
+						}
+					},
+
+					_ => {
+						let consequent = self.parse_javascript_expression_from(&token, token_start, &[':'])?;
+						self.skip_whitespace()?;
+						self.expect(':')?;
+						self.skip_whitespace()?;
+						let alternate = self.parse_javascript_expression(end)?;
+		
+						Ok(ast::Expression::Conditional(ast::ConditionalExpression {
+							location: Location::new(rstart, self.iter.position()),
+							condition: Box::new(expr),
+							consequent: Box::new(consequent),
+							alternate: Box::new(alternate),
+						}))
+					}
+				}
 			}
 
 			Token::OpenParen => {
@@ -423,6 +468,41 @@ impl Parser {
 					location: Location::new(rstart, self.iter.position()),
 					callee: Box::new(expr),
 					arguments,
+				}))
+			}
+
+			Token::Dot => {
+				let token_start = self.iter.position();
+				let token = lexer::scan(&mut self.iter)?;
+				let token_location = Location::new(token_start, self.iter.position());
+
+				match token {
+					Token::Identifier(name) => Ok(ast::Expression::Member(ast::MemberExpression {
+						location: Location::new(rstart, self.iter.position()),
+						object: Box::new(expr),
+						property: Box::new(ast::Expression::Identifier(
+							ast::IdentifierExpression {
+								location: token_location,
+								name,
+							},
+						)),
+						computed: false,
+						optional: false,
+					})),
+					_ => Err(ParserError::expected(token_location, &["identifier"])),
+				}
+			}
+
+			Token::OpenBracket => {
+				let property = self.parse_javascript_expression(&[']'])?;
+				self.expect(']')?;
+
+				Ok(ast::Expression::Member(ast::MemberExpression {
+					location: Location::new(rstart, self.iter.position()),
+					object: Box::new(expr),
+					property: Box::new(property),
+					computed: true,
+					optional: false,
 				}))
 			}
 
