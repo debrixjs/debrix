@@ -50,6 +50,8 @@ pub struct NullLiteral {
 pub enum UnaryOperator {
 	Minus,
 	Plus,
+	Increment,
+	Decrement,
 	Not,
 	BitwiseNot,
 	Typeof,
