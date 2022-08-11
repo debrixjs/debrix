@@ -23,24 +23,26 @@ impl Parser {
 		start: Position,
 		end: &[char],
 	) -> Result<ast::Expression, ParserError> {
-		match token {
+		let lstart = start.clone();
+
+		let expr = match token {
 			Token::EOF => Err(ParserError::eof(self.iter.position())),
 
 			Token::Identifier(name) => Ok(ast::Expression::Identifier(ast::IdentifierExpression {
-				location: Location::new(start.clone(), self.iter.position()),
+				location: Location::new(lstart, self.iter.position()),
 				name: name.to_owned(),
 			})),
 
 			Token::NumberLiteral(number) => Ok(ast::Expression::Literal(ast::Literal::Number(
 				ast::NumberLiteral {
-					location: Location::new(start, self.iter.position()),
+					location: Location::new(lstart, self.iter.position()),
 					value: number.to_owned(),
 				},
 			))),
 
 			Token::StringLiteral(string) => Ok(ast::Expression::Literal(ast::Literal::String(
 				ast::StringLiteral {
-					location: Location::new(start, self.iter.position()),
+					location: Location::new(lstart, self.iter.position()),
 					value: string
 						.clone()
 						.trim_matches(|c| c == '\'' || c == '"')
@@ -51,27 +53,27 @@ impl Parser {
 
 			Token::True => Ok(ast::Expression::Literal(ast::Literal::Boolean(
 				ast::BooleanLiteral {
-					location: Location::new(start, self.iter.position()),
+					location: Location::new(lstart, self.iter.position()),
 					value: true,
 				},
 			))),
 
 			Token::False => Ok(ast::Expression::Literal(ast::Literal::Boolean(
 				ast::BooleanLiteral {
-					location: Location::new(start, self.iter.position()),
+					location: Location::new(lstart, self.iter.position()),
 					value: false,
 				},
 			))),
 
 			Token::Null => Ok(ast::Expression::Literal(ast::Literal::Null(
 				ast::NullLiteral {
-					location: Location::new(start, self.iter.position()),
+					location: Location::new(lstart, self.iter.position()),
 				},
 			))),
 
 			Token::TemplateLiteral(template) => {
 				Ok(ast::Expression::Template(ast::TemplateLiteral {
-					location: Location::new(start, self.iter.position()),
+					location: Location::new(lstart, self.iter.position()),
 					raw: template.to_owned(),
 				}))
 			}
@@ -88,7 +90,7 @@ impl Parser {
 
 				Ok(ast::Expression::Parenthesized(
 					ast::ParenthesizedExpression {
-						location: Location::new(start, self.iter.position()),
+						location: Location::new(lstart, self.iter.position()),
 						expression: Box::new(expr),
 					},
 				))
@@ -102,11 +104,11 @@ impl Parser {
 				loop {
 					let start = self.iter.position();
 					let expr =
-						self.parse_javascript_expression_from(&token, token_pos.clone(), end)?;
+						self.parse_javascript_expression_from(&token, token_pos.clone(), &[':', ',', '}'])?;
 
 					match lexer::scan(&mut self.iter)? {
 						Token::Colon => {
-							let value = self.parse_javascript_expression(end)?;
+							let value = self.parse_javascript_expression(&[',', '}'])?;
 
 							properties.push(ast::ObjectProperty {
 								location: Location::new(start, self.iter.position()),
@@ -163,7 +165,7 @@ impl Parser {
 				}
 
 				Ok(ast::Expression::Object(ast::ObjectExpression {
-					location: Location::new(start, self.iter.position()),
+					location: Location::new(lstart, self.iter.position()),
 					properties,
 				}))
 			}
@@ -175,7 +177,7 @@ impl Parser {
 
 				loop {
 					let expr =
-						self.parse_javascript_expression_from(&token, token_pos.clone(), end)?;
+						self.parse_javascript_expression_from(&token, token_pos.clone(), &[',', ']'])?;
 
 					match lexer::scan(&mut self.iter)? {
 						Token::Comma => {
@@ -208,7 +210,7 @@ impl Parser {
 				}
 
 				Ok(ast::Expression::Array(ast::ArrayExpression {
-					location: Location::new(start, self.iter.position()),
+					location: Location::new(lstart, self.iter.position()),
 					elements,
 				}))
 			}
@@ -239,13 +241,28 @@ impl Parser {
 				let next = self.parse_javascript_expression(end)?;
 
 				Ok(ast::Expression::Unary(ast::UnaryExpression {
-					location: Location::new(start, self.iter.position()),
+					location: Location::new(lstart, self.iter.position()),
 					operator,
 					operand: Box::new(next),
 				}))
 			}
 
 			_ => todo!(),
+		}?;
+
+		self.skip_whitespace()?;
+
+		if self.iter.peek().map_or(true, |c| end.contains(&c)) {
+			return Ok(expr);
+		}
+
+		let rstart = start.clone();
+		let token = lexer::scan(&mut self.iter)?;
+
+		match token {
+			Token::EOF => Err(ParserError::eof(self.iter.position())),
+
+			x => todo!("{:?}", x),
 		}
 	}
 }
