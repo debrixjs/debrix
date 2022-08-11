@@ -99,55 +99,55 @@ impl Parser {
 	}
 
 	#[allow(dead_code)]
-	fn try_ch(&mut self, ch: char) -> Result<bool, ParserError> {
+	fn try_ch(&mut self, ch: char) -> bool {
 		if let Some(next) = self.iter.peek() {
 			if next == ch {
 				self.iter.next();
-				Ok(true)
+				true
 			} else {
-				Ok(false)
+				false
 			}
 		} else {
-			Err(ParserError::eof(self.iter.position()))
+			false
 		}
 	}
 
-	fn try_str(&mut self, str: &str) -> Result<bool, ParserError> {
+	fn try_str(&mut self, str: &str) -> bool {
 		for ch in str.chars() {
 			if let Some(next) = self.iter.next() {
 				if next != ch {
-					return Ok(false);
+					return false;
 				}
 			} else {
-				return Err(ParserError::eof(self.iter.position()));
+				return false;
 			}
 		}
 
-		Ok(true)
+		true
 	}
 
-	fn test(&mut self, ch: char) -> Result<bool, ParserError> {
+	fn test(&mut self, ch: char) -> bool {
 		if let Some(next) = self.iter.peek() {
-			Ok(next == ch)
+			next == ch
 		} else {
-			return Err(ParserError::eof(self.iter.position()));
+			false
 		}
 	}
 
-	fn test_str(&mut self, str: &str) -> Result<bool, ParserError> {
+	fn test_str(&mut self, str: &str) -> bool {
 		for (i, ch) in str.chars().enumerate() {
 			if let Some(next) = self.iter.next() {
 				if next != ch {
 					self.iter.back_n(i + 1);
-					return Ok(false);
+					return false;
 				}
 			} else {
-				return Err(ParserError::eof(self.iter.position()));
+				return false;
 			}
 		}
 
 		self.iter.back_n(str.len());
-		Ok(true)
+		true
 	}
 
 	pub fn next(&mut self) -> Result<Option<ast::Node>, ParserError> {
@@ -155,11 +155,11 @@ impl Parser {
 			return Ok(None);
 		}
 
-		if self.test_str("using")? {
+		if self.test_str("using") {
 			return Ok(Some(self.parse_dependency_statement()?.into_node()));
 		}
 
-		if self.test('<')? {
+		if self.test('<') {
 			return Ok(Some(self.parse_element()?.into_node()));
 		}
 

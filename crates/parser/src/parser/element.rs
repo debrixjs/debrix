@@ -252,7 +252,7 @@ impl Parser {
 		let mut children = Vec::new();
 
 		while let Some(ch) = self.iter.peek() {
-			if self.test_str("</")? {
+			if self.test_str("</") {
 				break;
 			}
 

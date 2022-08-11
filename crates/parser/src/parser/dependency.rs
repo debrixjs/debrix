@@ -38,7 +38,7 @@ impl Parser {
 
 						self.skip_whitespace()?;
 
-						if self.try_str("as")? {
+						if self.try_str("as") {
 							self.skip_whitespace()?;
 
 							let local = self.parse_identifier()?;
