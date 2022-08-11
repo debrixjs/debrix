@@ -262,6 +262,71 @@ impl Parser {
 		match token {
 			Token::EOF => Err(ParserError::eof(self.iter.position())),
 
+			
+
+			Token::Plus
+			| Token::Minus
+			| Token::Multiply
+			| Token::Divide
+			| Token::Modulo
+			| Token::Exponentiate
+			| Token::LeftShift
+			| Token::RightShift
+			| Token::UnsignedRightShift
+			| Token::LessThan
+			| Token::GreaterThan
+			| Token::LessThanEqual
+			| Token::GreaterThanEqual
+			| Token::Equal
+			| Token::NotEqual
+			| Token::StrictEqual
+			| Token::StrictNotEqual
+			| Token::BitAnd
+			| Token::BitOr
+			| Token::BitXor
+			| Token::LogicalAnd
+			| Token::LogicalOr
+			| Token::Instanceof
+			| Token::In => {
+				let operator = match token {
+					Token::Plus => ast::BinaryOperator::Plus,
+					Token::Minus => ast::BinaryOperator::Minus,
+					Token::Multiply => ast::BinaryOperator::Multiply,
+					Token::Divide => ast::BinaryOperator::Divide,
+					Token::Modulo => ast::BinaryOperator::Modulo,
+					Token::Exponentiate => ast::BinaryOperator::Exponent,
+					Token::LeftShift => ast::BinaryOperator::LeftShift,
+					Token::RightShift => ast::BinaryOperator::RightShift,
+					Token::UnsignedRightShift => ast::BinaryOperator::UnsignedRightShift,
+					Token::LessThan => ast::BinaryOperator::LessThan,
+					Token::GreaterThan => ast::BinaryOperator::GreaterThan,
+					Token::LessThanEqual => ast::BinaryOperator::LessThanOrEqual,
+					Token::GreaterThanEqual => ast::BinaryOperator::GreaterThanOrEqual,
+					Token::Equal => ast::BinaryOperator::Equal,
+					Token::NotEqual => ast::BinaryOperator::NotEqual,
+					Token::StrictEqual => ast::BinaryOperator::StrictEqual,
+					Token::StrictNotEqual => ast::BinaryOperator::StrictNotEqual,
+					Token::BitAnd => ast::BinaryOperator::BitwiseAnd,
+					Token::BitOr => ast::BinaryOperator::BitwiseOr,
+					Token::BitXor => ast::BinaryOperator::BitwiseXor,
+					Token::LogicalAnd => ast::BinaryOperator::LogicalAnd,
+					Token::LogicalOr => ast::BinaryOperator::LogicalOr,
+					Token::Instanceof => ast::BinaryOperator::InstanceOf,
+					Token::In => ast::BinaryOperator::In,
+
+					_ => unreachable!(),
+				};
+
+				let right = self.parse_javascript_expression(end)?;
+
+				Ok(ast::Expression::Binary(ast::BinaryExpression {
+					location: Location::new(rstart, self.iter.position()),
+					operator,
+					left: Box::new(expr),
+					right: Box::new(right),
+				}))
+			}
+
 			x => todo!("{:?}", x),
 		}
 	}

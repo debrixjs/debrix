@@ -84,7 +84,6 @@ fn test_parse_unary() {
 	}
 }
 
-#[ignore]
 #[test]
 fn test_parse_binary() {
 	match parse("foo + bar") {
