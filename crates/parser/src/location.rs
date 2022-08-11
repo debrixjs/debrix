@@ -16,11 +16,15 @@ impl Position {
 		let mut line = 0;
 		let mut column = 0;
 		for i in 0..offset {
-			if chars[i] == '\n' {
-				line += 1;
-				column = 0;
+			if let Some(ch) = chars.get(i) {
+				if *ch == '\n' {
+					line += 1;
+					column = 0;
+				} else {
+					column += 1;
+				}
 			} else {
-				column += 1;
+				break;
 			}
 		}
 		Self::new(line, column)
