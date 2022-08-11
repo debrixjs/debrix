@@ -247,6 +247,60 @@ impl Parser {
 				}))
 			}
 
+			Token::New => {
+				let callee = self.parse_javascript_expression(&['('])?;
+
+				let mut arguments = vec![];
+
+				if lexer::scan(&mut self.iter)? == Token::OpenParen {
+					let mut token_pos = self.iter.position();
+					let mut token = lexer::scan(&mut self.iter)?;
+
+					loop {
+						let expr = self.parse_javascript_expression_from(
+							&token,
+							token_pos.clone(),
+							&[',', ')'],
+						)?;
+
+						match lexer::scan(&mut self.iter)? {
+							Token::Comma => {
+								arguments.push(expr);
+
+								token_pos = self.iter.position();
+								token = lexer::scan(&mut self.iter)?;
+
+								if token == Token::CloseParen {
+									break;
+								}
+							}
+
+							Token::CloseParen => {
+								arguments.push(expr);
+								break;
+							}
+
+							_ => {
+								return Err(ParserError::expected(
+									Location::from_length(
+										self.iter.offset(),
+										1,
+										self.iter.borrow_content(),
+									),
+									&[",", ")"],
+								))
+							}
+						}
+					}
+				}
+
+				Ok(ast::Expression::New(ast::NewExpression {
+					location: Location::new(lstart, self.iter.position()),
+					callee: Box::new(callee),
+					arguments,
+				}))
+			}
+
 			_ => todo!(),
 		}?;
 

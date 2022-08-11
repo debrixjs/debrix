@@ -162,7 +162,6 @@ fn test_parse_call() {
 	}
 }
 
-#[ignore]
 #[test]
 fn test_parse_new() {
 	match parse("new Foo(bar, baz)") {
