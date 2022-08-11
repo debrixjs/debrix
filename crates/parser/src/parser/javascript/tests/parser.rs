@@ -133,7 +133,6 @@ fn test_parse_conditional() {
 	}
 }
 
-#[ignore]
 #[test]
 fn test_parse_call() {
 	match parse("foo(bar, baz)") {

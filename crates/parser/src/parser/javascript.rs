@@ -342,6 +342,36 @@ impl Parser {
 				}))
 			}
 
+			Token::OpenParen => {
+				let mut arguments = Vec::new();
+
+				self.skip_whitespace()?;
+
+				if self.iter.peek().map_or(true, |c| c != ')') {
+					loop {
+						let argument = self.parse_javascript_expression(&[',', ')'])?;
+						arguments.push(argument);
+
+						self.skip_whitespace()?;
+
+						if self.iter.peek().map_or(true, |c| c != ',') {
+							break;
+						}
+
+						self.iter.next();
+						self.skip_whitespace()?;
+					}
+				}
+
+				self.expect(')')?;
+
+				Ok(ast::Expression::Call(ast::CallExpression {
+					location: Location::new(rstart, self.iter.position()),
+					callee: Box::new(expr),
+					arguments,
+				}))
+			}
+
 			x => todo!("{:?}", x),
 		}
 	}
