@@ -79,21 +79,94 @@ impl Parser {
 			}
 
 			Token::OpenParen => {
-				let expr = self.parse_javascript_expression(end)?;
+				let mut items = vec![];
+				// position is used to throw error is comma isn't allowed
+				let mut first_comma_position = None;
 
-				if lexer::scan(&mut self.iter)? != Token::CloseParen {
-					return Err(ParserError::expected(
-						Location::from_length(self.iter.offset(), 1, self.iter.borrow_content()),
-						&[")"],
-					));
+				let mut token_pos = self.iter.position();
+				let mut token = lexer::scan(&mut self.iter)?;
+
+				loop {
+					let expr = self.parse_javascript_expression_from(
+						&token,
+						token_pos.clone(),
+						&[',', ')'],
+					)?;
+
+					match lexer::scan(&mut self.iter)? {
+						Token::Comma => {
+							if first_comma_position.is_none() {
+								first_comma_position = Some(self.iter.offset());
+							}
+
+							items.push(expr);
+
+							token_pos = self.iter.position();
+							token = lexer::scan(&mut self.iter)?;
+
+							if token == Token::CloseParen {
+								break;
+							}
+						}
+
+						Token::CloseParen => {
+							items.push(expr);
+							break;
+						}
+
+						_ => {
+							return Err(ParserError::expected(
+								Location::from_length(
+									self.iter.offset(),
+									1,
+									self.iter.borrow_content(),
+								),
+								&[",", "]"],
+							))
+						}
+					}
 				}
 
-				Ok(ast::Expression::Parenthesized(
-					ast::ParenthesizedExpression {
+				self.skip_whitespace()?;
+
+				if self.try_str("=>") {
+					let mut parameters = vec![];
+
+					for item in items {
+						match item {
+							ast::Expression::Identifier(id) => parameters.push(id),
+							_ => {
+								return Err(ParserError::expected(
+									Location::from_length(
+										self.iter.offset(),
+										1,
+										self.iter.borrow_content(),
+									),
+									&["identifier"],
+								))
+							}
+						}
+					}
+
+					let body = self.parse_javascript_expression(&[])?;
+
+					Ok(ast::Expression::Function(ast::FunctionExpression {
 						location: Location::new(lstart, self.iter.position()),
-						expression: Box::new(expr),
-					},
-				))
+						parameters,
+						body: Box::new(body),
+					}))
+				} else {
+					if let Some(start) = first_comma_position {
+						return Err(ParserError::unexpected(Location::from_length(start, 1, self.iter.borrow_content()), &[","]));
+					}
+
+					let expression = items.swap_remove(0);
+
+					Ok(ast::Expression::Parenthesized(ast::ParenthesizedExpression {
+						location: Location::new(lstart, self.iter.position()),
+						expression: Box::new(expression),
+					}))
+				}
 			}
 
 			Token::OpenBrace => {

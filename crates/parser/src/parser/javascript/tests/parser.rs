@@ -311,7 +311,6 @@ fn test_parse_sequence() {
 	}
 }
 
-#[ignore]
 #[test]
 fn test_parse_function() {
 	match parse("(foo) => bar") {
@@ -327,6 +326,21 @@ fn test_parse_function() {
 			}
 		}
 		_ => panic!("Expected FunctionExpression"),
+	}
+}
+
+#[test]
+fn test_parse_parenthesized() {
+	match parse("(foo)") {
+		ast::Expression::Parenthesized(expr) => {
+			match *expr.expression {
+				ast::Expression::Identifier(expr) => {
+					assert_eq!(expr.name, "foo");
+				}
+				_ => panic!("Expected Identifier"),
+			}
+		}
+		_ => panic!("Expected ParenthesizedExpression"),
 	}
 }
 
