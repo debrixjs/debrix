@@ -3,6 +3,7 @@ use super::super::*;
 fn parse(input: &str) -> ast::Expression {
 	let mut parser = Parser::new(input);
 	let expression = parser.parse_javascript_expression(&[]).unwrap();
+	assert!(parser.iter.peek().is_none());
 	expression
 }
 
