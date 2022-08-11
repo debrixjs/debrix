@@ -213,6 +213,38 @@ impl Parser {
 				}))
 			}
 
+			Token::Delete
+			| Token::Typeof
+			| Token::Void
+			| Token::Plus
+			| Token::Minus
+			| Token::Increment
+			| Token::Decrement
+			| Token::Not
+			| Token::BitNot => {
+				let operator = match token {
+					Token::Delete => ast::UnaryOperator::Delete,
+					Token::Typeof => ast::UnaryOperator::Typeof,
+					Token::Void => ast::UnaryOperator::Void,
+					Token::Plus => ast::UnaryOperator::Plus,
+					Token::Minus => ast::UnaryOperator::Minus,
+					Token::Increment => ast::UnaryOperator::Increment,
+					Token::Decrement => ast::UnaryOperator::Decrement,
+					Token::Not => ast::UnaryOperator::Not,
+					Token::BitNot => ast::UnaryOperator::BitwiseNot,
+
+					_ => unreachable!(),
+				};
+
+				let next = self.parse_javascript_expression(end)?;
+
+				Ok(ast::Expression::Unary(ast::UnaryExpression {
+					location: Location::new(start, self.iter.position()),
+					operator,
+					operand: Box::new(next),
+				}))
+			}
+
 			_ => todo!(),
 		}
 	}

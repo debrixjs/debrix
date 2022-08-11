@@ -68,7 +68,6 @@ fn test_parse_null_literal() {
 	}
 }
 
-#[ignore]
 #[test]
 fn test_parse_unary() {
 	match parse("void foo") {
