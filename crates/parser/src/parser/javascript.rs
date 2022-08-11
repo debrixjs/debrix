@@ -394,24 +394,26 @@ impl Parser {
 						let token_start = self.iter.position();
 						let token = lexer::scan(&mut self.iter)?;
 						let token_location = Location::new(token_start, self.iter.position());
-		
+
 						match token {
-							Token::Identifier(name) => Ok(ast::Expression::Member(ast::MemberExpression {
-								location: Location::new(rstart, self.iter.position()),
-								object: Box::new(expr),
-								property: Box::new(ast::Expression::Identifier(
-									ast::IdentifierExpression {
-										location: token_location,
-										name,
-									},
-								)),
-								computed: false,
-								optional: true,
-							})),
+							Token::Identifier(name) => {
+								Ok(ast::Expression::Member(ast::MemberExpression {
+									location: Location::new(rstart, self.iter.position()),
+									object: Box::new(expr),
+									property: Box::new(ast::Expression::Identifier(
+										ast::IdentifierExpression {
+											location: token_location,
+											name,
+										},
+									)),
+									computed: false,
+									optional: true,
+								}))
+							}
 							Token::OpenBracket => {
 								let property = self.parse_javascript_expression(&[']'])?;
 								self.expect(']')?;
-				
+
 								Ok(ast::Expression::Member(ast::MemberExpression {
 									location: Location::new(rstart, self.iter.position()),
 									object: Box::new(expr),
@@ -422,15 +424,16 @@ impl Parser {
 							}
 							_ => Err(ParserError::expected(token_location, &["identifier"])),
 						}
-					},
+					}
 
 					_ => {
-						let consequent = self.parse_javascript_expression_from(&token, token_start, &[':'])?;
+						let consequent =
+							self.parse_javascript_expression_from(&token, token_start, &[':'])?;
 						self.skip_whitespace()?;
 						self.expect(':')?;
 						self.skip_whitespace()?;
 						let alternate = self.parse_javascript_expression(end)?;
-		
+
 						Ok(ast::Expression::Conditional(ast::ConditionalExpression {
 							location: Location::new(rstart, self.iter.position()),
 							condition: Box::new(expr),
