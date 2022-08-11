@@ -327,6 +327,21 @@ impl Parser {
 				}))
 			}
 
+			Token::QuestionMark => {
+				let consequent = self.parse_javascript_expression(&[':'])?;
+				self.skip_whitespace()?;
+				self.expect(':')?;
+				self.skip_whitespace()?;
+				let alternate = self.parse_javascript_expression(end)?;
+
+				Ok(ast::Expression::Conditional(ast::ConditionalExpression {
+					location: Location::new(rstart, self.iter.position()),
+					condition: Box::new(expr),
+					consequent: Box::new(consequent),
+					alternate: Box::new(alternate),
+				}))
+			}
+
 			x => todo!("{:?}", x),
 		}
 	}

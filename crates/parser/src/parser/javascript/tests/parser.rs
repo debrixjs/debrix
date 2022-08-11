@@ -106,7 +106,6 @@ fn test_parse_binary() {
 	}
 }
 
-#[ignore]
 #[test]
 fn test_parse_conditional() {
 	match parse("foo ? bar : baz") {
