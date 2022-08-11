@@ -23,6 +23,11 @@ fn test_scan_number_literal() {
 }
 
 #[test]
+fn test_scan_number_literal_with_decimal() {
+	assert_eq!(tokenize("12.3"), Token::NumberLiteral(12.3_f64));
+}
+
+#[test]
 fn test_scan_template_literal() {
 	assert_eq!(tokenize("`abc`"), Token::TemplateLiteral("abc".to_string()));
 }
