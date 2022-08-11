@@ -397,7 +397,6 @@ fn test_parse_template() {
 	}
 }
 
-#[ignore]
 #[test]
 fn test_parse_tagged_template() {
 	match parse("foo`bar`") {

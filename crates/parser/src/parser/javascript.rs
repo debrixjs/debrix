@@ -486,7 +486,9 @@ impl Parser {
 					Token::ModuloAssign => ast::AssignmentOperator::ModuloEqual,
 					Token::LeftShiftAssign => ast::AssignmentOperator::LeftShiftEqual,
 					Token::RightShiftAssign => ast::AssignmentOperator::RightShiftEqual,
-					Token::UnsignedRightShiftAssign => ast::AssignmentOperator::UnsignedRightShiftEqual,
+					Token::UnsignedRightShiftAssign => {
+						ast::AssignmentOperator::UnsignedRightShiftEqual
+					}
 					Token::BitAndAssign => ast::AssignmentOperator::BitwiseAndEqual,
 					Token::BitXorAssign => ast::AssignmentOperator::BitwiseXorEqual,
 					Token::BitOrAssign => ast::AssignmentOperator::BitwiseOrEqual,
@@ -626,6 +628,21 @@ impl Parser {
 					computed: true,
 					optional: false,
 				}))
+			}
+
+			Token::TemplateLiteral(raw) => {
+				let start = self.iter.position();
+				
+				Ok(ast::Expression::TaggedTemplate(
+					ast::TaggedTemplateExpression {
+						location: Location::new(rstart, self.iter.position()),
+						tag: Box::new(expr),
+						quasi: ast::TemplateLiteral {
+							location: Location::new(start, self.iter.position()),
+							raw: raw.to_owned(),
+						},
+					},
+				))
 			}
 
 			x => todo!("{:?}", x),
