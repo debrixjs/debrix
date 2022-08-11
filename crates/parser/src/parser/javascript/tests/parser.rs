@@ -344,7 +344,6 @@ fn test_parse_parenthesized() {
 	}
 }
 
-#[ignore]
 #[test]
 fn test_parse_assignment() {
 	match parse("foo = bar") {

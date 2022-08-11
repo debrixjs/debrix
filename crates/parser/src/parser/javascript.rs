@@ -157,15 +157,20 @@ impl Parser {
 					}))
 				} else {
 					if let Some(start) = first_comma_position {
-						return Err(ParserError::unexpected(Location::from_length(start, 1, self.iter.borrow_content()), &[","]));
+						return Err(ParserError::unexpected(
+							Location::from_length(start, 1, self.iter.borrow_content()),
+							&[","],
+						));
 					}
 
 					let expression = items.swap_remove(0);
 
-					Ok(ast::Expression::Parenthesized(ast::ParenthesizedExpression {
-						location: Location::new(lstart, self.iter.position()),
-						expression: Box::new(expression),
-					}))
+					Ok(ast::Expression::Parenthesized(
+						ast::ParenthesizedExpression {
+							location: Location::new(lstart, self.iter.position()),
+							expression: Box::new(expression),
+						},
+					))
 				}
 			}
 
@@ -451,6 +456,47 @@ impl Parser {
 				let right = self.parse_javascript_expression(end)?;
 
 				Ok(ast::Expression::Binary(ast::BinaryExpression {
+					location: Location::new(rstart, self.iter.position()),
+					operator,
+					left: Box::new(expr),
+					right: Box::new(right),
+				}))
+			}
+
+			Token::Assign
+			| Token::PlusAssign
+			| Token::MinusAssign
+			| Token::MultiplyAssign
+			| Token::ExponentiateAssign
+			| Token::DivideAssign
+			| Token::ModuloAssign
+			| Token::LeftShiftAssign
+			| Token::RightShiftAssign
+			| Token::UnsignedRightShiftAssign
+			| Token::BitAndAssign
+			| Token::BitXorAssign
+			| Token::BitOrAssign => {
+				let operator = match token {
+					Token::Assign => ast::AssignmentOperator::Equal,
+					Token::PlusAssign => ast::AssignmentOperator::PlusEqual,
+					Token::MinusAssign => ast::AssignmentOperator::MinusEqual,
+					Token::MultiplyAssign => ast::AssignmentOperator::MultiplyEqual,
+					Token::ExponentiateAssign => ast::AssignmentOperator::ExponentEqual,
+					Token::DivideAssign => ast::AssignmentOperator::DivideEqual,
+					Token::ModuloAssign => ast::AssignmentOperator::ModuloEqual,
+					Token::LeftShiftAssign => ast::AssignmentOperator::LeftShiftEqual,
+					Token::RightShiftAssign => ast::AssignmentOperator::RightShiftEqual,
+					Token::UnsignedRightShiftAssign => ast::AssignmentOperator::UnsignedRightShiftEqual,
+					Token::BitAndAssign => ast::AssignmentOperator::BitwiseAndEqual,
+					Token::BitXorAssign => ast::AssignmentOperator::BitwiseXorEqual,
+					Token::BitOrAssign => ast::AssignmentOperator::BitwiseOrEqual,
+
+					_ => unreachable!(),
+				};
+
+				let right = self.parse_javascript_expression(end)?;
+
+				Ok(ast::Expression::Assignment(ast::AssignmentExpression {
 					location: Location::new(rstart, self.iter.position()),
 					operator,
 					left: Box::new(expr),
