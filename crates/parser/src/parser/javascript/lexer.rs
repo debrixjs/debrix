@@ -332,10 +332,14 @@ pub fn scan(iter: &mut ChIter) -> Result<Token, ParserError> {
 
 fn scan_number(iter: &mut ChIter) -> Result<Token, ParserError> {
 	let mut number = String::new();
+	let mut is_float = false;
 
 	while let Some(ch) = iter.next() {
 		if ch.is_ascii_digit() {
 			number.push(ch);
+		} else if !is_float && ch == '.' {
+			number.push(ch);
+			is_float = true;
 		} else {
 			break;
 		}
