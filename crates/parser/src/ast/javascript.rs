@@ -143,6 +143,8 @@ pub struct MemberExpression {
 	pub location: Location,
 	pub object: Box<Expression>,
 	pub property: Box<Expression>,
+	pub computed: bool,
+	pub optional: bool
 }
 
 pub struct SequenceExpression {
