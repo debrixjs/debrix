@@ -366,7 +366,6 @@ fn test_parse_assignment() {
 	}
 }
 
-#[ignore]
 #[test]
 fn test_parse_spread() {
 	match parse("foo(...bar)") {

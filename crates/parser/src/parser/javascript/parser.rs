@@ -1,7 +1,7 @@
 use crate::*;
 
-use ast::javascript as ast;
 use super::lexer::{self, Token};
+use ast::javascript as ast;
 
 impl Parser {
 	pub fn parse_javascript_expression(
@@ -10,10 +10,10 @@ impl Parser {
 	) -> Result<ast::Expression, ParserError> {
 		let start = self.iter.position();
 		let token = lexer::scan(&mut self.iter)?;
-		self.parse_javascript_expression_from(&token, start, end)
+		self.parse_javascript_expression_at(&token, start, end)
 	}
 
-	fn parse_javascript_expression_from(
+	fn parse_javascript_expression_at(
 		&mut self,
 		token: &Token,
 		start: Position,
@@ -83,7 +83,7 @@ impl Parser {
 				let mut token = lexer::scan(&mut self.iter)?;
 
 				loop {
-					let expr = self.parse_javascript_expression_from(
+					let expr = self.parse_javascript_expression_at(
 						&token,
 						token_pos.clone(),
 						&[',', ')'],
@@ -169,7 +169,7 @@ impl Parser {
 
 				loop {
 					let start = self.iter.position();
-					let expr = self.parse_javascript_expression_from(
+					let expr = self.parse_javascript_expression_at(
 						&token,
 						token_pos.clone(),
 						&[':', ',', '}'],
@@ -237,7 +237,7 @@ impl Parser {
 				let mut token = lexer::scan(&mut self.iter)?;
 
 				loop {
-					let expr = self.parse_javascript_expression_from(
+					let expr = self.parse_javascript_expression_at(
 						&token,
 						token_pos.clone(),
 						&[',', ']'],
@@ -312,46 +312,9 @@ impl Parser {
 
 				let mut arguments = vec![];
 
-				if lexer::scan(&mut self.iter)? == Token::OpenParen {
-					let mut token_pos = self.iter.position();
-					let mut token = lexer::scan(&mut self.iter)?;
-
-					loop {
-						let expr = self.parse_javascript_expression_from(
-							&token,
-							token_pos.clone(),
-							&[',', ')'],
-						)?;
-
-						match lexer::scan(&mut self.iter)? {
-							Token::Comma => {
-								arguments.push(expr);
-
-								token_pos = self.iter.position();
-								token = lexer::scan(&mut self.iter)?;
-
-								if token == Token::CloseParen {
-									break;
-								}
-							}
-
-							Token::CloseParen => {
-								arguments.push(expr);
-								break;
-							}
-
-							_ => {
-								return Err(ParserError::expected(
-									Location::from_length(
-										self.iter.offset(),
-										1,
-										self.iter.borrow_content(),
-									),
-									&[",", ")"],
-								))
-							}
-						}
-					}
+				if self.test('(') {
+					let token = lexer::scan(&mut self.iter)?;
+					arguments = self.parse_javascript_arguments(&token)?;
 				}
 
 				Ok(ast::Expression::New(ast::NewExpression {
@@ -525,7 +488,7 @@ impl Parser {
 
 					_ => {
 						let consequent =
-							self.parse_javascript_expression_from(&token, token_start, &[':'])?;
+							self.parse_javascript_expression_at(&token, token_start, &[':'])?;
 						self.skip_whitespace()?;
 						self.expect(':')?;
 						self.skip_whitespace()?;
@@ -542,27 +505,8 @@ impl Parser {
 			}
 
 			Token::OpenParen => {
-				let mut arguments = Vec::new();
-
-				self.skip_whitespace()?;
-
-				if self.iter.peek().map_or(true, |c| c != ')') {
-					loop {
-						let argument = self.parse_javascript_expression(&[',', ')'])?;
-						arguments.push(argument);
-
-						self.skip_whitespace()?;
-
-						if self.iter.peek().map_or(true, |c| c != ',') {
-							break;
-						}
-
-						self.iter.next();
-						self.skip_whitespace()?;
-					}
-				}
-
-				self.expect(')')?;
+				let token = lexer::scan(&mut self.iter)?;
+				let arguments = self.parse_javascript_arguments(&token)?;
 
 				Ok(ast::Expression::Call(ast::CallExpression {
 					location: Location::new(rstart, self.iter.position()),
@@ -608,7 +552,7 @@ impl Parser {
 
 			Token::TemplateLiteral(raw) => {
 				let start = self.iter.position();
-				
+
 				Ok(ast::Expression::TaggedTemplate(
 					ast::TaggedTemplateExpression {
 						location: Location::new(rstart, self.iter.position()),
@@ -623,5 +567,61 @@ impl Parser {
 
 			x => todo!("{:?}", x),
 		}
+	}
+
+	fn parse_javascript_arguments(
+		&mut self,
+		token: &Token,
+	) -> Result<Vec<ast::Expression>, ParserError> {
+		let mut arguments = Vec::new();
+
+		if !matches!(token, Token::OpenParen) {
+			return Err(ParserError::expected(
+				self.iter.at_length(1),
+				&["("],
+			));
+		}
+
+		loop {
+			let token = lexer::scan(&mut self.iter)?;
+			let start = self.iter.position();
+
+			match token {
+				Token::CloseParen => break,
+
+				Token::Identifier(name) => {
+					arguments.push(ast::Expression::Identifier(ast::IdentifierExpression {
+						location: Location::new(start, self.iter.position()),
+						name,
+					}));
+				}
+
+				Token::Ellipsis => {
+					let token_start = self.iter.position();
+					let token = lexer::scan(&mut self.iter)?;
+					let token_location = Location::new(token_start, self.iter.position());
+
+					match token {
+						Token::Identifier(name) => {
+							arguments.push(ast::Expression::Spread(ast::SpreadExpression {
+								location: Location::new(start, self.iter.position()),
+								argument: Box::new(ast::Expression::Identifier(
+									ast::IdentifierExpression {
+										location: token_location,
+										name,
+									},
+								)),
+							}));
+						}
+
+						_ => return Err(ParserError::expected(token_location, &["identifier"])),
+					}
+				}
+
+				_ => return Err(ParserError::unexpected(self.iter.at_length(1), &[","])),
+			};
+		}
+
+		Ok(arguments)
 	}
 }
