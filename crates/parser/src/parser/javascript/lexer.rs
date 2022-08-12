@@ -213,11 +213,7 @@ pub fn scan(iter: &mut ChIter) -> Result<Token, ParserError> {
 						Ok(Token::Ellipsis)
 					}
 					_ => Err(ParserError::unexpected(
-						Location::from_length(
-							iter.offset(),
-							1,
-							iter.borrow_content(),
-						),
+						iter.at_length(1),
 						&["."],
 					)),
 				},
@@ -321,7 +317,7 @@ pub fn scan(iter: &mut ChIter) -> Result<Token, ParserError> {
 			')' => Ok(Token::CloseParen),
 			'~' => Ok(Token::BitNot),
 			_ => Err(ParserError::unexpected(
-				Location::from_length(iter.offset(), 1, iter.borrow_content()),
+				iter.at_length(1),
 				&[&ch.to_string()],
 			)),
 		}
@@ -385,7 +381,7 @@ fn scan_string(iter: &mut ChIter) -> Result<Token, ParserError> {
 
 		if quote != '"' && quote != '\'' {
 			return Err(ParserError::expected(
-				Location::from_length(iter.offset(), 1, iter.borrow_content()),
+				iter.at_length(1),
 				&["\"", "'"],
 			));
 		}
@@ -420,7 +416,7 @@ fn scan_template(iter: &mut ChIter) -> Result<Token, ParserError> {
 	if let Some(ch) = iter.next() {
 		if ch != '`' {
 			return Err(ParserError::expected(
-				Location::from_length(iter.offset(), 1, iter.borrow_content()),
+				iter.at_length(1),
 				&["`"],
 			));
 		}

@@ -23,6 +23,10 @@ impl ChIter {
 		self.pos
 	}
 
+	pub fn at_length(&self, length: usize) -> Location {
+		Location::from_length(self.offset(), length, &self.borrow_content())
+	}
+
 	pub fn borrow_content(&self) -> &str {
 		&self.content
 	}

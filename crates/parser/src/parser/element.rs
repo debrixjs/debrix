@@ -27,11 +27,7 @@ impl Parser {
 						if let Some(ch) = self.iter.next() {
 							if ch != '>' {
 								return Err(ParserError::expected(
-									Location::from_length(
-										self.iter.offset(),
-										1,
-										self.iter.borrow_content(),
-									),
+									self.iter.at_length(1),
 									&[">"],
 								));
 							}
@@ -45,11 +41,7 @@ impl Parser {
 					}
 					'\0' | '"' | '\'' | '/' | '=' => {
 						return Err(ParserError::unexpected(
-							Location::from_length(
-								self.iter.offset(),
-								1,
-								self.iter.borrow_content(),
-							),
+							self.iter.at_length(1),
 							&["\0", "\"", "'", "/", "="],
 						));
 					}
@@ -158,7 +150,7 @@ impl Parser {
 			}
 
 			Err(ParserError::expected(
-				Location::from_length(self.iter.offset(), 1, self.iter.borrow_content()),
+				self.iter.at_length(1),
 				&["\"", "'", "("],
 			))
 		} else {
@@ -173,7 +165,7 @@ impl Parser {
 		while let Some(ch) = self.iter.next() {
 			if ch == '\0' || ch == '"' || ch == '\'' || ch == '/' || ch == '>' {
 				return Err(ParserError::unexpected(
-					Location::from_length(self.iter.offset(), 1, self.iter.borrow_content()),
+					self.iter.at_length(1),
 					&["\0", "\"", "'", "/", ">"],
 				));
 			}

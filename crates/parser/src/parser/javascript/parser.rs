@@ -112,11 +112,7 @@ impl Parser {
 
 						_ => {
 							return Err(ParserError::expected(
-								Location::from_length(
-									self.iter.offset(),
-									1,
-									self.iter.borrow_content(),
-								),
+								self.iter.at_length(1),
 								&[",", "]"],
 							))
 						}
@@ -133,11 +129,7 @@ impl Parser {
 							ast::Expression::Identifier(id) => parameters.push(id),
 							_ => {
 								return Err(ParserError::expected(
-									Location::from_length(
-										self.iter.offset(),
-										1,
-										self.iter.borrow_content(),
-									),
+									self.iter.at_length(1),
 									&["identifier"],
 								))
 							}
@@ -198,11 +190,7 @@ impl Parser {
 								Token::CloseBrace => break,
 								_ => {
 									return Err(ParserError::expected(
-										Location::from_length(
-											self.iter.offset(),
-											1,
-											self.iter.borrow_content(),
-										),
+										self.iter.at_length(1),
 										&[",", "}"],
 									))
 								}
@@ -230,11 +218,7 @@ impl Parser {
 
 						_ => {
 							return Err(ParserError::expected(
-								Location::from_length(
-									self.iter.offset(),
-									1,
-									self.iter.borrow_content(),
-								),
+								self.iter.at_length(1),
 								&[",", ":"],
 							))
 						}
@@ -278,11 +262,7 @@ impl Parser {
 
 						_ => {
 							return Err(ParserError::expected(
-								Location::from_length(
-									self.iter.offset(),
-									1,
-									self.iter.borrow_content(),
-								),
+								self.iter.at_length(1),
 								&[",", "]"],
 							))
 						}

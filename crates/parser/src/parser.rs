@@ -70,7 +70,7 @@ impl Parser {
 				Ok(())
 			} else {
 				Err(ParserError::expected(
-					Location::from_length(self.iter.offset(), 1, self.iter.borrow_content()),
+					self.iter.at_length(1),
 					&[&ch.to_string()],
 				))
 			}
@@ -86,7 +86,7 @@ impl Parser {
 			if let Some(next) = self.iter.next() {
 				if next != ch {
 					return Err(ParserError::expected(
-						Location::from_length(start, str.len(), self.iter.borrow_content()),
+						self.iter.at_length(str.len()),
 						&[str],
 					));
 				}
@@ -165,7 +165,7 @@ impl Parser {
 
 		// invalid syntax
 		Err(ParserError::unexpected(
-			Location::from_length(self.iter.offset(), 1, &self.iter.borrow_content()),
+			self.iter.at_length(1),
 			&[&self.iter.peek().unwrap().to_string()],
 		))
 	}
