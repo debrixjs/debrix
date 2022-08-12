@@ -1,4 +1,5 @@
-use super::super::*;
+use crate::*;
+use super::super::lexer::{self, Token};
 
 fn tokenize(input: &str) -> Token {
 	let mut iter = ChIter::new(input.to_owned());

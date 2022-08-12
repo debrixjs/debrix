@@ -1,4 +1,5 @@
-use super::super::*;
+use crate::*;
+use ast::javascript as ast;
 
 fn parse(input: &str) -> ast::Expression {
 	let mut parser = Parser::new(input);

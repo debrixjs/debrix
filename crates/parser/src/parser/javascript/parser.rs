@@ -1,11 +1,7 @@
 use crate::*;
 
-mod lexer;
 use ast::javascript as ast;
-use lexer::Token;
-
-#[cfg(test)]
-mod tests;
+use super::lexer::{self, Token};
 
 impl Parser {
 	pub fn parse_javascript_expression(
