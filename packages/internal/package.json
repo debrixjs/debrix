@@ -18,7 +18,7 @@
 	],
 	"scripts": {
 		"build": "rollup -c && tsc --declaration --emitDeclarationOnly --outDir types",
-		"build:release": "rollup -c --environment RELEASE && tsc --declaration --emitDeclarationOnly --outDir types",
+		"build:release": "rollup -c --environment PRODUCTION && tsc --declaration --emitDeclarationOnly --outDir types",
 		"prepublishOnly": "npm run build:release"
 	},
 	"devDependencies": {

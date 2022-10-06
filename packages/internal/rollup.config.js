@@ -1,6 +1,6 @@
 import typescript from 'rollup-plugin-typescript2';
 
-const { RELEASE } = process.env;
+const { PRODUCTION } = process.env;
 
 export default {
 	input: 'src/index.ts',
@@ -8,11 +8,13 @@ export default {
 		{
 			name: 'debrix_internal',
 			file: 'index.js',
-			format: 'umd'
+			format: 'umd',
+			minify: PRODUCTION
 		},
 		{
 			file: 'index.mjs',
-			format: 'esm'
+			format: 'esm',
+			minify: PRODUCTION
 		}
 	],
 	plugins: [
