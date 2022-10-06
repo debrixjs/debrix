@@ -2,35 +2,36 @@ use crate::*;
 
 impl Parser {
 	pub fn parse_string(&mut self) -> Result<ast::StringLiteral, ParserError> {
-		let start = self.iter.position();
+		let start = self.scanner.cursor();
 		let mut value = String::new();
 
-		if let Some(ch) = self.iter.next() {
-			if ch == '\'' || ch == '"' {
-				let quote = ch;
+		if let Some(char) = self.scanner.peek().cloned() {
+			if char == '\'' || char == '"' {
+				let quote = char.to_owned();
 
-				while let Some(ch) = self.iter.next() {
-					if ch == quote {
+				while let Some(char) = self.scanner.next() {
+					if char == &quote {
 						break;
 					} else {
-						value.push(ch);
+						value.push(char.to_owned());
 					}
 				}
 
-				let end = self.iter.position();
+				// skip the quote
+				self.scanner.next();
 
 				return Ok(ast::StringLiteral {
+					start,
+					end: self.scanner.cursor(),
 					value,
 					quote,
-					location: Location::new(start, end),
 				});
 			} else {
-				// expected string
+				return Err(self.expected(&["\"", "'"]));
 			}
 		}
 
-		// unexpected eof
-		Err(ParserError::eof(self.iter.position()))
+		Err(self.unexpected())
 	}
 }
 
@@ -40,7 +41,7 @@ mod tests {
 
 	#[test]
 	fn test_parse_string() {
-		let mut parser = Parser::new("'foo'");
+		let mut parser = Parser::new("'foo'".to_owned());
 		let string = parser.parse_string().unwrap();
 
 		assert_eq!(string.value, "foo");

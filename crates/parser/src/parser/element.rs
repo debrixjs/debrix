@@ -2,81 +2,81 @@ use crate::*;
 
 impl Parser {
 	pub fn parse_element(&mut self) -> Result<ast::Element, ParserError> {
-		let start = self.iter.position();
-
-		self.expect('<')?;
-
-		let tag = self.parse_tag_name()?;
-		self.skip_whitespace()?;
-
+		let start = self.scanner.cursor();
 		let mut self_closing = false;
 		let mut attributes = Vec::new();
 		let mut bindings = None;
 		let mut children = Vec::new();
+		let mut end_tag = None;
+
+		if !self.scanner.take("<") {
+			return Err(self.expected(&["<"]));
+		}
+
+		let tag_name = self.parse_tag_name()?;
+		self.skip_whitespace();
 
 		loop {
-			if let Some(ch) = self.iter.peek_next() {
-				if ch.is_ascii_whitespace() {
+			if let Some(char) = self.scanner.peek() {
+				if char.is_whitespace() {
+					self.scanner.next();
 					continue;
 				}
 
-				match ch {
+				match char {
 					'(' => {
 						bindings = self.parse_bindings()?;
-
-						if let Some(ch) = self.iter.next() {
-							if ch != '>' {
-								return Err(ParserError::expected(
-									self.iter.at_length(1),
-									&[">"],
-								));
-							}
-						} else {
-							return Err(ParserError::eof(self.iter.position()));
-						}
 					}
-					'>' => {
-						self.iter.next();
+					'>' | '/' => {
 						break;
 					}
-					'\0' | '"' | '\'' | '/' | '=' => {
-						return Err(ParserError::unexpected(
-							self.iter.at_length(1),
-							&["\0", "\"", "'", "/", "="],
-						));
+					'\0' | '"' | '\'' | '=' => {
+						self.scanner.next();
+						return Err(self.unexpected());
 					}
 					_ => attributes.push(self.parse_attribute()?),
 				}
 			} else {
-				return Err(ParserError::eof(self.iter.position()));
+				return Err(self.unexpected());
 			}
 		}
 
-		if let Some(ch) = self.iter.peek_next() {
-			if ch == '/' {
-				self.iter.next();
-				self_closing = true;
-			}
-		} else {
-			return Err(ParserError::eof(self.iter.position()));
+		if self.scanner.take("/") {
+			self_closing = true;
 		}
 
-		self.expect('>')?;
+		if !self.scanner.take(">") {
+			return Err(self.expected(&[">"]));
+		}
 
 		if !self_closing {
+			self.skip_whitespace();
 			children = self.parse_children()?;
+			self.skip_whitespace();
 
-			self.expect_str("</")?;
-			self.expect_str(&tag.name)?;
-			self.expect('>')?;
+			let start = self.scanner.cursor();
+
+			if !self.scanner.take("</") {
+				return Err(self.expected(&["</"]));
+			}
+
+			if !self.scanner.take(&tag_name.name) {
+				return Err(self.expected(&[&tag_name.name]));
+			}
+
+			if !self.scanner.take(">") {
+				return Err(self.expected(&[">"]));
+			}
+
+			let end = self.scanner.cursor();
+			end_tag = Some(ast::Range { start, end });
 		}
 
-		let end = self.iter.position();
-
 		Ok(ast::Element {
-			location: Location::new(start, end),
-			tag,
-			self_closing,
+			start,
+			end: self.scanner.cursor(),
+			tag_name,
+			end_tag,
 			attributes,
 			bindings,
 			children,
@@ -84,190 +84,163 @@ impl Parser {
 	}
 
 	fn parse_tag_name(&mut self) -> Result<ast::Identifier, ParserError> {
-		let start = self.iter.position();
-		let mut tag_name = String::new();
+		let start = self.scanner.cursor();
+		let mut name = String::new();
 
-		if let Some(ch) = self.iter.peek() {
-			tag_name.push(ch);
+		if let Some(char) = self.scanner.peek().cloned() {
+			self.scanner.next();
+			name.push(char);
 		} else {
-			return Err(ParserError::eof(self.iter.position()));
+			return Err(self.unexpected());
 		}
 
-		while let Some(ch) = self.iter.peek_next() {
-			if ch.is_whitespace() || ch == '>' {
+		while let Some(char) = self.scanner.peek().cloned() {
+			if char.is_whitespace() || char == '>' {
 				break;
 			}
 
-			self.iter.next();
-			tag_name.push(ch);
+			self.scanner.next();
+			name.push(char);
 		}
 
-		let end = self.iter.position();
-
 		Ok(ast::Identifier {
-			location: Location::new(start, end),
-			name: tag_name,
+			start,
+			end: self.scanner.cursor(),
+			name,
 		})
 	}
 
 	fn parse_attribute(&mut self) -> Result<ast::Attribute, ParserError> {
-		let start = self.iter.position();
+		let start = self.scanner.cursor();
 
 		let name = self.parse_attribute_name()?;
-		self.skip_whitespace()?;
+		self.skip_whitespace();
 
-		self.expect('=')?;
-		self.skip_whitespace()?;
+		if !self.scanner.take("=") {
+			return Err(self.expected(&["="]));
+		}
+		self.skip_whitespace();
 
-		if let Some(ch) = self.iter.peek() {
-			if ch == '(' {
-				self.iter.next();
-				self.skip_whitespace()?;
+		if let Some(char) = self.scanner.peek() {
+			if char == &'(' {
+				self.scanner.next();
+				self.skip_whitespace();
 
-				let expr = self.parse_javascript_expression(&[')'])?;
-				self.skip_whitespace()?;
+				let expr = self.parse_javascript()?;
+				self.skip_whitespace();
 
-				self.expect(')')?;
-
-				let end = self.iter.position();
+				if !self.scanner.take(")") {
+					return Err(self.expected(&[")"]));
+				}
 
 				return Ok(ast::Attribute::Binding(ast::Binding {
-					location: Location::new(start, end),
+					start,
+					end: self.scanner.cursor(),
 					name,
 					value: expr,
 				}));
 			}
 
-			if ch == '"' || ch == '\'' {
+			if char == &'"' || char == &'\'' {
 				let value = self.parse_string()?;
-				let end = self.iter.position();
 
 				return Ok(ast::Attribute::Static(ast::StaticAttribute {
-					location: Location::new(start, end),
+					start,
+					end: self.scanner.cursor(),
 					name,
 					value: Some(value),
 				}));
 			}
 
-			Err(ParserError::expected(
-				self.iter.at_length(1),
-				&["\"", "'", "("],
-			))
+			Err(self.expected(&["\"", "'", "("]))
 		} else {
-			return Err(ParserError::eof(self.iter.position()));
+			return Err(self.unexpected());
 		}
 	}
 
 	fn parse_attribute_name(&mut self) -> Result<ast::Identifier, ParserError> {
-		let start = self.iter.position();
+		let start = self.scanner.cursor();
 		let mut name = String::new();
 
-		while let Some(ch) = self.iter.next() {
-			if ch == '\0' || ch == '"' || ch == '\'' || ch == '/' || ch == '>' {
-				return Err(ParserError::unexpected(
-					self.iter.at_length(1),
-					&["\0", "\"", "'", "/", ">"],
-				));
+		while let Some(char) = self.scanner.peek() {
+			if char == &'\0' || char == &'"' || char == &'\'' || char == &'/' || char == &'>' {
+				return Err(self.unexpected());
 			}
 
-			if ch.is_whitespace() || ch == '=' {
+			if char.is_whitespace() || char == &'=' {
 				break;
 			}
 
-			name.push(ch);
+			name.push(*char);
+			self.scanner.next();
 		}
 
-		let end = self.iter.position();
-
 		Ok(ast::Identifier {
-			location: Location::new(start, end),
+			start,
+			end: self.scanner.cursor(),
 			name,
 		})
 	}
 
 	fn parse_bindings(&mut self) -> Result<Option<ast::NodeCollection<ast::Binding>>, ParserError> {
-		let start = self.iter.position();
+		let start = self.scanner.cursor();
 
-		self.expect('(')?;
-		self.skip_whitespace()?;
+		if !self.scanner.take("(") {
+			return Err(self.expected(&["("]));
+		}
+		self.skip_whitespace();
 
 		let mut bindings = Vec::new();
 
-		while let Some(ch) = self.iter.peek() {
-			if ch == ')' {
-				self.iter.next();
+		while let Some(char) = self.scanner.peek().cloned() {
+			if char == ')' {
+				self.scanner.next();
 				break;
 			}
 
 			bindings.push(self.parse_binding()?);
-			self.skip_whitespace()?;
+			self.skip_whitespace();
 
-			if ch == ',' {
-				self.iter.next();
-				self.skip_whitespace()?;
+			if char == ',' {
+				self.scanner.next();
+				self.skip_whitespace();
 				continue;
 			} else {
-				self.expect(')')?;
+				if !self.scanner.take(")") {
+					return Err(self.expected(&[")"]));
+				}
+
+				break;
 			}
 		}
 
-		let end = self.iter.position();
-
 		Ok(Some(ast::NodeCollection {
-			location: Location::new(start, end),
+			start,
+			end: self.scanner.cursor(),
 			nodes: bindings,
 		}))
 	}
 
 	fn parse_binding(&mut self) -> Result<ast::Binding, ParserError> {
-		let start = self.iter.position();
+		let start = self.scanner.cursor();
 
 		let name = self.parse_identifier()?;
-		self.skip_whitespace()?;
+		self.skip_whitespace();
 
-		self.expect(':')?;
-		self.skip_whitespace()?;
+		if !self.scanner.take(":") {
+			return Err(self.expected(&[":"]));
+		}
+		self.skip_whitespace();
 
-		let expr = self.parse_javascript_expression(&[',', ')'])?;
-		self.skip_whitespace()?;
-
-		let end = self.iter.position();
+		let expr = self.parse_javascript()?;
+		self.skip_whitespace();
 
 		Ok(ast::Binding {
-			location: Location::new(start, end),
+			start,
+			end: self.scanner.cursor(),
 			name,
 			value: expr,
 		})
-	}
-
-	fn parse_children(&mut self) -> Result<Vec<ast::Node>, ParserError> {
-		let mut children = Vec::new();
-
-		while let Some(ch) = self.iter.peek() {
-			if self.test_str("</") {
-				break;
-			}
-
-			if ch == '<' {
-				if let Some(ch) = self.iter.peek_n(2) {
-					children.push(
-						if ch == '!' {
-							self.parse_comment()?.into_node()
-						} else {
-							self.parse_element()?.into_node()
-						}
-					);
-				}
-			}
-
-			if ch == '{' {
-				children.push(self.parse_text_binding()?.into_node());
-			}
-
-			children.push(ast::Node::Text(self.parse_text()?));
-		}
-
-		Ok(children)
 	}
 }
 
@@ -277,10 +250,10 @@ mod tests {
 
 	#[test]
 	fn test_element() {
-		let mut parser = Parser::new("<div></div>");
+		let mut parser = Parser::new("<div></div>".to_owned());
 		let element = parser.parse_element().unwrap();
 
-		assert_eq!(element.tag.name, "div");
+		assert_eq!(element.tag_name.name, "div");
 		assert_eq!(element.attributes.len(), 0);
 		assert!(element.bindings.is_none());
 		assert_eq!(element.children.len(), 0);

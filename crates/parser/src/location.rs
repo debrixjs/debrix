@@ -1,6 +1,6 @@
 use crate::*;
 
-#[derive(Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Position {
 	pub line: usize,
 	pub column: usize,
@@ -9,42 +9,6 @@ pub struct Position {
 impl Position {
 	pub fn new(line: usize, column: usize) -> Self {
 		Self { line, column }
-	}
-
-	pub fn from_offset(offset: usize, content: &str) -> Self {
-		let chars = content.chars().collect::<Vec<_>>();
-		let mut line = 0;
-		let mut column = 0;
-		for i in 0..offset {
-			if let Some(ch) = chars.get(i) {
-				if *ch == '\n' {
-					line += 1;
-					column = 0;
-				} else {
-					column += 1;
-				}
-			} else {
-				break;
-			}
-		}
-		Self::new(line, column)
-	}
-
-	pub fn offset(&self, content: &str) -> usize {
-		let chars = content.chars().collect::<Vec<_>>();
-		let mut offset = 0;
-		let mut line = 0;
-		let mut column = 0;
-		while line < self.line || column < self.column {
-			if chars[offset] == '\n' {
-				line += 1;
-				column = 0;
-			} else {
-				column += 1;
-			}
-			offset += 1;
-		}
-		offset
 	}
 }
 
@@ -60,7 +24,7 @@ impl fmt::Debug for Position {
 	}
 }
 
-#[derive(Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Location {
 	pub start: Position,
 	pub end: Position,
@@ -69,17 +33,6 @@ pub struct Location {
 impl Location {
 	pub fn new(start: Position, end: Position) -> Self {
 		Self { start, end }
-	}
-
-	pub fn from_offsets(start: usize, end: usize, content: &str) -> Self {
-		Self::new(
-			Position::from_offset(start, content),
-			Position::from_offset(end, content),
-		)
-	}
-
-	pub fn from_length(start: usize, length: usize, content: &str) -> Self {
-		Self::from_offsets(start, start + length, content)
 	}
 }
 

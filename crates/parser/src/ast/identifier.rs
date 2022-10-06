@@ -1,6 +1,6 @@
-use crate::ast::*;
-
+#[derive(Debug)]
 pub struct Identifier {
-	pub location: Location,
+	pub start: usize,
+	pub end: usize,
 	pub name: String,
 }

@@ -1,13 +1,29 @@
-use crate::*;
+use super::*;
 
-#[derive(Debug, PartialEq)]
-pub enum Token {
-	EOF, // end of file
+pub struct Token {
+	pub kind: TokenKind,
+	pub start: usize,
+	pub end: usize,
+}
 
-	Identifier(String),
-	StringLiteral(String),
-	NumberLiteral(f64),
-	TemplateLiteral(String),
+impl Token {
+	pub fn new(kind: TokenKind, start: usize, end: usize) -> Self {
+		Token { kind, start, end }
+	}
+
+	pub fn from_length(kind: TokenKind, start: usize, length: usize) -> Self {
+		Self::new(kind, start, start + length)
+	}
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum TokenKind {
+	EOF,
+
+	Identifier,
+	Numeric,
+	String,
+	Template,
 
 	True,       // true
 	False,      // false
@@ -75,362 +91,528 @@ pub enum Token {
 	Semicolon,                // ;
 }
 
-pub fn scan(iter: &mut ChIter) -> Result<Token, ParserError> {
-	if let Some(ch) = iter.peek() {
-		let ch = ch.clone();
+pub struct Lexer<'a> {
+	scanner: &'a mut Scanner,
+}
 
-		if ch.is_ascii_whitespace() {
-			iter.next();
-			return scan(iter);
-		}
+impl<'a> Lexer<'a> {
+	pub fn new(scanner: &'a mut Scanner) -> Self {
+		Self { scanner }
+	}
 
-		if ch == '/' {
-			if let Some(ch) = iter.peek_next() {
-				if ch == '/' {
-					iter.skip_n(2);
+	pub fn is_done(&self) -> bool {
+		self.scanner.is_done()
+	}
 
-					while let Some(ch) = iter.next() {
-						if ch == '\n' {
-							return scan(iter);
-						}
-					}
+	pub fn scanner(&self) -> &Scanner {
+		self.scanner
+	}
 
-					// Reached EOF, which is also the end of the comment
-					return Ok(Token::EOF);
-				} else if ch == '*' {
-					iter.skip_n(2);
+	pub fn scanner_mut(&mut self) -> &mut Scanner {
+		self.scanner
+	}
 
-					while let Some(ch) = iter.next() {
-						if ch == '*' {
-							if let Some(ch) = iter.next() {
-								if ch == '/' {
-									return scan(iter);
+	pub fn cursor(&self) -> usize {
+		self.scanner.cursor()
+	}
+
+	pub fn scan(&mut self) -> Result<Token, usize> {
+		loop {
+			if let Some(char) = self.scanner.peek() {
+				if char.is_whitespace() {
+					self.scanner.next();
+					continue;
+				}
+
+				if char == &'/' {
+					if let Some(char) = self.scanner.next() {
+						match char {
+							&'/' => {
+								while let Some(char) = self.scanner.next() {
+									if char == &'\n' {
+										break;
+									}
 								}
+
+								continue;
+							}
+
+							&'*' => {
+								while let Some(char) = self.scanner.next() {
+									if char == &'*' {
+										self.scanner.next();
+
+										if self.scanner.take("/") {
+											break;
+										}
+									}
+								}
+
+								continue;
+							}
+
+							_ => {
+								self.scanner.back();
+								self.scanner.back();
+								break;
 							}
 						}
-					}
-
-					return Err(ParserError::eof(iter.position()));
-				}
-			}
-		}
-
-		if ch.is_ascii_digit() {
-			return scan_number(iter);
-		}
-
-		// Also includes boolean, keywords, and null
-		if ch.is_ascii_alphabetic() || ch == '_' || ch == '$' {
-			return scan_identifier(iter);
-		}
-
-		if ch == '"' || ch == '\'' {
-			return scan_string(iter);
-		}
-
-		if ch == '`' {
-			return scan_template(iter);
-		}
-
-		// The next character will always be consumed.
-		iter.next();
-
-		match ch {
-			'!' => match iter.peek() {
-				Some('=') => {
-					iter.next();
-					match iter.peek() {
-						Some('=') => {
-							iter.next();
-							Ok(Token::StrictNotEqual)
-						}
-						_ => Ok(Token::NotEqual),
+					} else {
+						self.scanner.back();
+						break;
 					}
 				}
-				_ => Ok(Token::Not),
-			},
-			'%' => match iter.peek() {
-				Some('=') => {
-					iter.next();
-					Ok(Token::ModuloAssign)
-				}
-				_ => Ok(Token::Modulo),
-			},
-			'&' => match iter.peek() {
-				Some('&') => {
-					iter.next();
-					Ok(Token::LogicalAnd)
-				}
-				Some('=') => {
-					iter.next();
-					Ok(Token::BitAndAssign)
-				}
-				_ => Ok(Token::BitAnd),
-			},
-			'*' => match iter.peek() {
-				Some('*') => {
-					iter.next();
-					match iter.peek() {
-						Some('=') => {
-							iter.next();
-							Ok(Token::ExponentiateAssign)
-						}
-						_ => Ok(Token::Exponentiate),
-					}
-				}
-				Some('=') => {
-					iter.next();
-					Ok(Token::MultiplyAssign)
-				}
-				_ => Ok(Token::Multiply),
-			},
-			'+' => match iter.peek() {
-				Some('+') => {
-					iter.next();
-					Ok(Token::Increment)
-				}
-				Some('=') => {
-					iter.next();
-					Ok(Token::PlusAssign)
-				}
-				_ => Ok(Token::Plus),
-			},
-			'-' => match iter.peek() {
-				Some('-') => {
-					iter.next();
-					Ok(Token::Decrement)
-				}
-				Some('=') => {
-					iter.next();
-					Ok(Token::MinusAssign)
-				}
-				_ => Ok(Token::Minus),
-			},
-			'.' => match iter.peek() {
-				Some('.') => match iter.next() {
-					Some('.') => {
-						iter.next();
-						Ok(Token::Ellipsis)
-					}
-					_ => Err(ParserError::unexpected(
-						iter.at_length(1),
-						&["."],
-					)),
-				},
-				_ => Ok(Token::Dot),
-			},
-			'/' => match iter.peek() {
-				Some('=') => {
-					iter.next();
-					Ok(Token::DivideAssign)
-				}
-				_ => Ok(Token::Divide),
-			},
-			':' => Ok(Token::Colon),
-			';' => Ok(Token::Semicolon),
-			',' => Ok(Token::Comma),
-			'<' => match iter.peek() {
-				Some('<') => {
-					iter.next();
-					match iter.peek() {
-						Some('=') => {
-							iter.next();
-							Ok(Token::LeftShiftAssign)
-						}
-						_ => Ok(Token::LeftShift),
-					}
-				}
-				Some('=') => {
-					iter.next();
-					Ok(Token::LessThanEqual)
-				}
-				_ => Ok(Token::LessThan),
-			},
-			'=' => match iter.peek() {
-				Some('=') => {
-					iter.next();
-					match iter.peek() {
-						Some('=') => {
-							iter.next();
-							Ok(Token::StrictEqual)
-						}
-						_ => Ok(Token::Equal),
-					}
-				}
-				Some('>') => {
-					iter.next();
-					Ok(Token::Arrow)
-				}
-				_ => Ok(Token::Assign),
-			},
-			'>' => match iter.peek() {
-				Some('>') => {
-					iter.next();
-					match iter.peek() {
-						Some('>') => {
-							iter.next();
-							match iter.peek() {
-								Some('=') => {
-									iter.next();
-									Ok(Token::UnsignedRightShiftAssign)
-								}
-								_ => Ok(Token::UnsignedRightShift),
-							}
-						}
-						Some('=') => {
-							iter.next();
-							Ok(Token::RightShiftAssign)
-						}
-						_ => Ok(Token::RightShift),
-					}
-				}
-				Some('=') => {
-					iter.next();
-					Ok(Token::GreaterThanEqual)
-				}
-				_ => Ok(Token::GreaterThan),
-			},
-			'?' => Ok(Token::QuestionMark),
-			'[' => Ok(Token::OpenBracket),
-			']' => Ok(Token::CloseBracket),
-			'^' => match iter.peek() {
-				Some('=') => {
-					iter.next();
-					Ok(Token::BitXorAssign)
-				}
-				_ => Ok(Token::BitXor),
-			},
-			'{' => Ok(Token::OpenBrace),
-			'|' => match iter.peek() {
-				Some('|') => {
-					iter.next();
-					Ok(Token::LogicalOr)
-				}
-				Some('=') => {
-					iter.next();
-					Ok(Token::BitOrAssign)
-				}
-				_ => Ok(Token::BitOr),
-			},
-			'}' => Ok(Token::CloseBrace),
-			'(' => Ok(Token::OpenParen),
-			')' => Ok(Token::CloseParen),
-			'~' => Ok(Token::BitNot),
-			_ => Err(ParserError::unexpected(
-				iter.at_length(1),
-				&[&ch.to_string()],
-			)),
-		}
-	} else {
-		Ok(Token::EOF)
-	}
-}
 
-fn scan_number(iter: &mut ChIter) -> Result<Token, ParserError> {
-	let mut number = String::new();
-	let mut is_float = false;
-
-	while let Some(ch) = iter.next() {
-		if ch.is_ascii_digit() {
-			number.push(ch);
-		} else if !is_float && ch == '.' {
-			number.push(ch);
-			is_float = true;
-		} else {
-			break;
-		}
-	}
-
-	iter.back();
-
-	Ok(Token::NumberLiteral(number.parse().unwrap()))
-}
-
-fn scan_identifier(iter: &mut ChIter) -> Result<Token, ParserError> {
-	let mut identifier = String::new();
-
-	while let Some(ch) = iter.next() {
-		if ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch == '_' || ch == '$' {
-			identifier.push(ch);
-		} else {
-			break;
-		}
-	}
-	
-	iter.back();
-
-	Ok(match identifier.as_str() {
-		"true" => Token::True,
-		"false" => Token::False,
-		"null" => Token::Null,
-		"delete" => Token::Delete,
-		"in" => Token::In,
-		"instanceof" => Token::Instanceof,
-		"new" => Token::New,
-		"return" => Token::Return,
-		"this" => Token::This,
-		"typeof" => Token::Typeof,
-		"void" => Token::Void,
-		_ => Token::Identifier(identifier),
-	})
-}
-
-fn scan_string(iter: &mut ChIter) -> Result<Token, ParserError> {
-	if let Some(ch) = iter.next() {
-		let quote = ch;
-
-		if quote != '"' && quote != '\'' {
-			return Err(ParserError::expected(
-				iter.at_length(1),
-				&["\"", "'"],
-			));
-		}
-
-		let mut string = ch.to_string();
-
-		while let Some(ch) = iter.next() {
-			string.push(ch);
-
-			if ch == quote {
 				break;
 			}
+		}
 
-			if ch == '\\' {
-				if let Some(ch) = iter.next() {
-					string.push(ch);
+		if self.scanner.is_done() {
+			return Ok(Token::from_length(TokenKind::EOF, self.scanner.cursor(), 0));
+		}
+
+		let start = self.scanner.cursor();
+		let char = self.scanner.peek().unwrap().clone();
+
+		if char.is_alphabetic() || char == '_' || char == '$' {
+			let mut ident = String::new();
+
+			while let Some(char) = self.scanner.peek() {
+				if char.is_alphanumeric() || char == &'_' || char == &'$' {
+					ident.push(char.to_owned());
+					self.scanner.next();
+					continue;
 				} else {
-					return Err(ParserError::eof(iter.position()));
+					break;
 				}
 			}
-		}
 
-		Ok(Token::StringLiteral(string))
-	} else {
-		return Err(ParserError::eof(iter.position()));
-	}
-}
+			assert_eq!(start + ident.len(), self.scanner.cursor());
 
-fn scan_template(iter: &mut ChIter) -> Result<Token, ParserError> {
-	let mut template = String::new();
-
-	if let Some(ch) = iter.next() {
-		if ch != '`' {
-			return Err(ParserError::expected(
-				iter.at_length(1),
-				&["`"],
+			return Ok(Token::new(
+				match ident.as_ref() {
+					"true" => TokenKind::True,
+					"false" => TokenKind::False,
+					"null" => TokenKind::Null,
+					"delete" => TokenKind::Delete,
+					"in" => TokenKind::In,
+					"instanceof" => TokenKind::Instanceof,
+					"new" => TokenKind::New,
+					"return" => TokenKind::Return,
+					"this" => TokenKind::This,
+					"typeof" => TokenKind::Typeof,
+					"void" => TokenKind::Void,
+					_ => TokenKind::Identifier,
+				},
+				start,
+				self.scanner.cursor(),
 			));
 		}
-	} else {
-		return Err(ParserError::eof(iter.position()));
-	}
 
-	while let Some(ch) = iter.next() {
-		if ch == '`' {
-			break;
+		if char.is_numeric() {
+			let mut has_dot = false;
+
+			while let Some(char) = self.scanner.next() {
+				if char.is_numeric() {
+					continue;
+				}
+
+				if !has_dot && char == &'.' {
+					has_dot = true;
+				} else {
+					break;
+				}
+			}
+
+			return Ok(Token::new(TokenKind::Numeric, start, self.scanner.cursor()));
 		}
 
-		template.push(ch);
-	}
+		if char == '"' || char == '\'' {
+			let quote = char.clone();
 
-	Ok(Token::TemplateLiteral(template))
+			while let Some(char) = self.scanner.next() {
+				if char == &quote {
+					self.scanner.next();
+					break;
+				} else if char == &'\\' {
+					if self.scanner.is_done() {
+						return Err(self.scanner.cursor());
+					}
+				}
+			}
+
+			return Ok(Token::new(TokenKind::String, start, self.scanner.cursor()));
+		}
+
+		if char == '`' {
+			while let Some(char) = self.scanner.next().cloned() {
+				if char == '`' {
+					self.scanner.next();
+					break;
+				} else if char == '\\' {
+					if self.scanner.is_done() {
+						return Err(self.scanner.cursor());
+					}
+				} else if char == '$' {
+					if self.scanner.is_done() {
+						return Err(self.scanner.cursor());
+					}
+
+					if char == '{' {
+						while let Some(char) = self.scanner.next() {
+							if char == &'}' {
+								break;
+							}
+						}
+					} else {
+						self.scanner.back();
+					}
+				}
+			}
+
+			return Ok(Token::new(
+				TokenKind::Template,
+				start,
+				self.scanner.cursor(),
+			));
+		}
+
+		// Consume the first character of the operator.
+		self.scanner.next();
+
+		match char {
+			'!' => {
+				if self.scanner.take("=") {
+					if self.scanner.take("=") {
+						return Ok(Token::new(
+							TokenKind::StrictNotEqual,
+							start,
+							self.scanner.cursor(),
+						));
+					}
+
+					return Ok(Token::new(
+						TokenKind::NotEqual,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				Ok(Token::new(TokenKind::Not, start, self.scanner.cursor()))
+			}
+
+			'%' => {
+				if self.scanner.take("=") {
+					return Ok(Token::new(
+						TokenKind::ModuloAssign,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				Ok(Token::new(TokenKind::Modulo, start, self.scanner.cursor()))
+			}
+
+			'&' => {
+				if self.scanner.take("&") {
+					return Ok(Token::new(
+						TokenKind::LogicalAnd,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				if self.scanner.take("=") {
+					return Ok(Token::new(
+						TokenKind::BitAndAssign,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				Ok(Token::new(TokenKind::BitAnd, start, self.scanner.cursor()))
+			}
+
+			'*' => {
+				if self.scanner.take("*") {
+					if self.scanner.take("=") {
+						return Ok(Token::new(
+							TokenKind::ExponentiateAssign,
+							start,
+							self.scanner.cursor(),
+						));
+					}
+
+					return Ok(Token::new(
+						TokenKind::Exponentiate,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				if self.scanner.take("=") {
+					return Ok(Token::new(
+						TokenKind::MultiplyAssign,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				Ok(Token::new(
+					TokenKind::Multiply,
+					start,
+					self.scanner.cursor(),
+				))
+			}
+
+			'+' => {
+				if self.scanner.take("+") {
+					return Ok(Token::new(
+						TokenKind::Increment,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				if self.scanner.take("=") {
+					return Ok(Token::new(
+						TokenKind::PlusAssign,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				Ok(Token::new(TokenKind::Plus, start, self.scanner.cursor()))
+			}
+
+			'-' => {
+				if self.scanner.take("-") {
+					return Ok(Token::new(
+						TokenKind::Decrement,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				if self.scanner.take("=") {
+					return Ok(Token::new(
+						TokenKind::MinusAssign,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				Ok(Token::new(TokenKind::Minus, start, self.scanner.cursor()))
+			}
+
+			'/' => {
+				// Comments have already been skipped.
+
+				if self.scanner.take("=") {
+					return Ok(Token::new(
+						TokenKind::DivideAssign,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				Ok(Token::new(TokenKind::Divide, start, self.scanner.cursor()))
+			}
+
+			'<' => {
+				if self.scanner.take("<") {
+					if self.scanner.take("=") {
+						return Ok(Token::new(
+							TokenKind::LeftShiftAssign,
+							start,
+							self.scanner.cursor(),
+						));
+					}
+
+					return Ok(Token::new(
+						TokenKind::LeftShift,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				if self.scanner.take("=") {
+					return Ok(Token::new(
+						TokenKind::LessThanEqual,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				Ok(Token::new(
+					TokenKind::LessThan,
+					start,
+					self.scanner.cursor(),
+				))
+			}
+
+			'>' => {
+				if self.scanner.take(">") {
+					if self.scanner.take("=") {
+						return Ok(Token::new(
+							TokenKind::RightShiftAssign,
+							start,
+							self.scanner.cursor(),
+						));
+					}
+
+					if self.scanner.take(">") {
+						if self.scanner.take("=") {
+							return Ok(Token::new(
+								TokenKind::UnsignedRightShiftAssign,
+								start,
+								self.scanner.cursor(),
+							));
+						}
+
+						return Ok(Token::new(
+							TokenKind::UnsignedRightShift,
+							start,
+							self.scanner.cursor(),
+						));
+					}
+
+					return Ok(Token::new(
+						TokenKind::RightShift,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				if self.scanner.take("=") {
+					return Ok(Token::new(
+						TokenKind::GreaterThanEqual,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				Ok(Token::new(
+					TokenKind::GreaterThan,
+					start,
+					self.scanner.cursor(),
+				))
+			}
+
+			'=' => {
+				if self.scanner.take("=") {
+					if self.scanner.take("=") {
+						return Ok(Token::new(
+							TokenKind::StrictEqual,
+							start,
+							self.scanner.cursor(),
+						));
+					}
+
+					return Ok(Token::new(TokenKind::Equal, start, self.scanner.cursor()));
+				}
+
+				if self.scanner.take(">") {
+					return Ok(Token::new(TokenKind::Arrow, start, self.scanner.cursor()));
+				}
+
+				Ok(Token::new(TokenKind::Assign, start, self.scanner.cursor()))
+			}
+
+			'^' => {
+				if self.scanner.take("=") {
+					return Ok(Token::new(
+						TokenKind::BitXorAssign,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				Ok(Token::new(TokenKind::BitXor, start, self.scanner.cursor()))
+			}
+
+			'|' => {
+				if self.scanner.take("|") {
+					return Ok(Token::new(
+						TokenKind::LogicalOr,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				if self.scanner.take("=") {
+					return Ok(Token::new(
+						TokenKind::BitOrAssign,
+						start,
+						self.scanner.cursor(),
+					));
+				}
+
+				Ok(Token::new(TokenKind::BitOr, start, self.scanner.cursor()))
+			}
+
+			'.' => {
+				if self.scanner.take(".") {
+					if self.scanner.take(".") {
+						return Ok(Token::new(
+							TokenKind::Ellipsis,
+							start,
+							self.scanner.cursor(),
+						));
+					} else {
+						return Err(self.scanner.cursor() + 1);
+					}
+				}
+
+				Ok(Token::new(TokenKind::Dot, start, self.scanner.cursor()))
+			}
+
+			'(' => Ok(Token::new(
+				TokenKind::OpenParen,
+				start,
+				self.scanner.cursor(),
+			)),
+			')' => Ok(Token::new(
+				TokenKind::CloseParen,
+				start,
+				self.scanner.cursor(),
+			)),
+			'[' => Ok(Token::new(
+				TokenKind::OpenBracket,
+				start,
+				self.scanner.cursor(),
+			)),
+			']' => Ok(Token::new(
+				TokenKind::CloseBracket,
+				start,
+				self.scanner.cursor(),
+			)),
+			'{' => Ok(Token::new(
+				TokenKind::OpenBrace,
+				start,
+				self.scanner.cursor(),
+			)),
+			'}' => Ok(Token::new(
+				TokenKind::CloseBrace,
+				start,
+				self.scanner.cursor(),
+			)),
+
+			',' => Ok(Token::new(TokenKind::Comma, start, self.scanner.cursor())),
+			';' => Ok(Token::new(
+				TokenKind::Semicolon,
+				start,
+				self.scanner.cursor(),
+			)),
+			':' => Ok(Token::new(TokenKind::Colon, start, self.scanner.cursor())),
+			'?' => Ok(Token::new(
+				TokenKind::QuestionMark,
+				start,
+				self.scanner.cursor(),
+			)),
+			'~' => Ok(Token::new(TokenKind::BitNot, start, self.scanner.cursor())),
+
+			_ => Err(self.scanner.cursor()),
+		}
+	}
 }

@@ -1,12 +1,14 @@
 use crate::ast::*;
 
+#[derive(Debug)]
 pub struct Comment {
-	pub location: Location,
+	pub start: usize,
+	pub end: usize,
 	pub comment: String,
 }
 
-impl IntoNode for Comment {
-	fn into_node(self) -> Node {
-		Node::Comment(self)
+impl From<Comment> for Node {
+	fn from(node: Comment) -> Node {
+		Node::Comment(node)
 	}
 }

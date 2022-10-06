@@ -2,9 +2,9 @@ use crate::*;
 use ast::javascript as ast;
 
 fn parse(input: &str) -> ast::Expression {
-	let mut parser = Parser::new(input);
-	let expression = parser.parse_javascript_expression(&[]).unwrap();
-	assert!(parser.iter.peek().is_none());
+	let mut parser = Parser::new(input.to_owned());
+	let expression = parser.parse_javascript().unwrap();
+	assert!(parser.scanner.is_done());
 	expression
 }
 
@@ -282,41 +282,18 @@ fn test_parse_optional_computed_member() {
 	}
 }
 
-#[ignore]
-#[test]
-fn test_parse_sequence() {
-	match parse("foo, bar, baz") {
-		ast::Expression::Sequence(expr) => {
-			assert_eq!(expr.expressions.len(), 3);
-			match expr.expressions.get(0).unwrap() {
-				ast::Expression::Identifier(expr) => {
-					assert_eq!(expr.name, "foo");
-				}
-				_ => panic!("Expected Identifier"),
-			}
-			match expr.expressions.get(1).unwrap() {
-				ast::Expression::Identifier(expr) => {
-					assert_eq!(expr.name, "bar");
-				}
-				_ => panic!("Expected Identifier"),
-			}
-			match expr.expressions.get(2).unwrap() {
-				ast::Expression::Identifier(expr) => {
-					assert_eq!(expr.name, "baz");
-				}
-				_ => panic!("Expected Identifier"),
-			}
-		}
-		_ => panic!("Expected SequenceExpression"),
-	}
-}
-
 #[test]
 fn test_parse_function() {
 	match parse("(foo) => bar") {
 		ast::Expression::Function(expr) => {
 			assert_eq!(expr.parameters.len(), 1);
-			assert_eq!(expr.parameters.get(0).unwrap().name, "foo");
+
+			match expr.parameters.get(0).unwrap() {
+				ast::Expression::Identifier(expr) => {
+					assert_eq!(expr.name, "foo");
+				}
+				_ => panic!("Expected Identifier"),
+			}
 
 			match *expr.body {
 				ast::Expression::Identifier(expr) => {
@@ -332,14 +309,12 @@ fn test_parse_function() {
 #[test]
 fn test_parse_parenthesized() {
 	match parse("(foo)") {
-		ast::Expression::Parenthesized(expr) => {
-			match *expr.expression {
-				ast::Expression::Identifier(expr) => {
-					assert_eq!(expr.name, "foo");
-				}
-				_ => panic!("Expected Identifier"),
+		ast::Expression::Parenthesized(expr) => match *expr.expression {
+			ast::Expression::Identifier(expr) => {
+				assert_eq!(expr.name, "foo");
 			}
-		}
+			_ => panic!("Expected Identifier"),
+		},
 		_ => panic!("Expected ParenthesizedExpression"),
 	}
 }
@@ -372,17 +347,15 @@ fn test_parse_spread() {
 		ast::Expression::Call(expr) => {
 			assert_eq!(expr.arguments.len(), 1);
 			match expr.arguments.get(0).unwrap() {
-				ast::Expression::Spread(expr) => {
-					match expr.argument.as_ref() {
-						ast::Expression::Identifier(expr) => {
-							assert_eq!(expr.name, "bar");
-						}
-						_ => panic!("Expected Identifier"),
+				ast::Expression::Spread(expr) => match expr.argument.as_ref() {
+					ast::Expression::Identifier(expr) => {
+						assert_eq!(expr.name, "bar");
 					}
-				}
+					_ => panic!("Expected Identifier"),
+				},
 				_ => panic!("Expected SpreadExpression"),
 			}
-		},
+		}
 		_ => panic!("Expected CallExpression"),
 	}
 }
@@ -415,22 +388,42 @@ fn test_parse_tagged_template() {
 
 #[test]
 fn test_parse_object() {
-	match parse("{foo: bar}") {
+	match parse("{foo: bar, [baz]: qux}") {
 		ast::Expression::Object(expr) => {
-			assert_eq!(expr.properties.len(), 1);
+			assert_eq!(expr.properties.len(), 2);
 
-			match &expr.properties.get(0).unwrap().key {
-				Some(ast::Expression::Identifier(expr)) => {
-					assert_eq!(expr.name, "foo");
+			match &expr.properties.get(0).unwrap() {
+				ast::ObjectProperty::Keyed(expr) => {
+					assert_eq!(expr.key.name, "foo");
+
+					match &expr.value {
+						Some(ast::Expression::Identifier(expr)) => {
+							assert_eq!(expr.name, "bar");
+						}
+						_ => panic!("Expected Identifier"),
+					}
 				}
-				_ => panic!("Expected Identifier"),
+				_ => panic!("Expected keyed object property"),
 			}
 
-			match &expr.properties.get(0).unwrap().value {
-				ast::Expression::Identifier(expr) => {
-					assert_eq!(expr.name, "bar");
+			match &expr.properties.get(1).unwrap() {
+				ast::ObjectProperty::Computed(expr) => {
+
+					match &*expr.key {
+						ast::Expression::Identifier(expr) => {
+							assert_eq!(expr.name, "baz");
+						},
+						_ => panic!("Expected Identifier"),
+					}
+
+					match &*expr.value {
+						ast::Expression::Identifier(expr) => {
+							assert_eq!(expr.name, "qux");
+						}
+						_ => panic!("Expected Identifier"),
+					}
 				}
-				_ => panic!("Expected Identifier"),
+				_ => panic!("Expected keyed object property"),
 			}
 		}
 		_ => panic!("Expected ObjectExpression"),
@@ -443,18 +436,18 @@ fn test_parse_object_trailing_comma() {
 		ast::Expression::Object(expr) => {
 			assert_eq!(expr.properties.len(), 1);
 
-			match &expr.properties.get(0).unwrap().key {
-				Some(ast::Expression::Identifier(expr)) => {
-					assert_eq!(expr.name, "foo");
-				}
-				_ => panic!("Expected Identifier"),
-			}
+			match expr.properties.get(0).unwrap() {
+				ast::ObjectProperty::Keyed(expr) => {
+					assert_eq!(expr.key.name, "foo");
 
-			match &expr.properties.get(0).unwrap().value {
-				ast::Expression::Identifier(expr) => {
-					assert_eq!(expr.name, "bar");
+					match &expr.value {
+						Some(ast::Expression::Identifier(expr)) => {
+							assert_eq!(expr.name, "bar");
+						}
+						_ => panic!("Expected Identifier"),
+					}
 				}
-				_ => panic!("Expected Identifier"),
+				_ => panic!("Expected keyed object property"),
 			}
 		}
 		_ => panic!("Expected ObjectExpression"),

@@ -1,32 +1,36 @@
 use crate::*;
 
+pub fn is_identifier(char: &char) -> bool {
+	char.is_alphanumeric() || char == &'_' || char == &'$'
+}
+
 impl Parser {
-	pub fn is_identifier(&self) -> bool {
-		match self.iter.peek() {
-			Some(ch) => ch.is_alphabetic() || ch == '_',
-			None => false,
-		}
-	}
-	
 	pub fn parse_identifier(&mut self) -> Result<ast::Identifier, ParserError> {
-		let start = self.iter.position();
+		let start = self.scanner.cursor();
 		let mut name = String::new();
 
-		while let Some(ch) = self.iter.next() {
-			if ch.is_alphanumeric() || ch == '_' {
-				name.push(ch);
+		if let Some(char) = self.scanner.peek() {
+			if !is_identifier(char) {
+				return Err(self.expected(&["identifier"]));
+			}
+
+			name.push(*char);
+		} else {
+			return Err(self.unexpected());
+		}
+
+		while let Some(char) = self.scanner.next() {
+			if is_identifier(char) {
+				name.push(*char);
 			} else {
 				break;
 			}
 		}
 
-		self.iter.back();
-	
-		let end = self.iter.position();
-	
 		Ok(ast::Identifier {
+			start,
+			end: self.scanner.cursor(),
 			name,
-			location: Location::new(start, end),
 		})
 	}
 }
@@ -36,8 +40,8 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn test_is_identifier() {
-		let mut parser = Parser::new("abc");
+	fn test_parse_identifier() {
+		let mut parser = Parser::new("abc".to_owned());
 		let ident = parser.parse_identifier().unwrap();
 
 		assert_eq!(ident.name, "abc");

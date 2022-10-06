@@ -1,5 +1,4 @@
-use crate::ast::*;
-
+#[derive(Debug)]
 pub enum Literal {
 	Number(NumberLiteral),
 	String(StringLiteral),
@@ -7,22 +6,30 @@ pub enum Literal {
 	Null(NullLiteral),
 }
 
+#[derive(Debug)]
 pub struct StringLiteral {
-	pub location: Location,
+	pub start: usize,
+	pub end: usize,
 	pub value: String,
 	pub quote: char,
 }
 
+#[derive(Debug)]
 pub struct NumberLiteral {
-	pub location: Location,
+	pub start: usize,
+	pub end: usize,
 	pub value: f64,
 }
 
+#[derive(Debug)]
 pub struct BooleanLiteral {
-	pub location: Location,
+	pub start: usize,
+	pub end: usize,
 	pub value: bool,
 }
 
+#[derive(Debug)]
 pub struct NullLiteral {
-	pub location: Location,
+	pub start: usize,
+	pub end: usize,
 }

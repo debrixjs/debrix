@@ -1,37 +1,8 @@
 use crate::*;
 
 pub struct ParserError {
-	location: Location,
-	positives: Vec<String>,
-	negatives: Vec<String>,
-}
-
-impl ParserError {
-	pub fn expected(location: Location, positives: &[&str]) -> Self {
-		let positives = positives.iter().map(|s| s.to_string()).collect();
-		Self {
-			location,
-			positives,
-			negatives: Vec::new(),
-		}
-	}
-
-	pub fn unexpected(location: Location, negatives: &[&str]) -> Self {
-		let negatives = negatives.iter().map(|s| s.to_string()).collect();
-		Self {
-			location,
-			positives: Vec::new(),
-			negatives,
-		}
-	}
-
-	pub fn eof(position: Position) -> Self {
-		Self {
-			location: Location::new(position.clone(), position),
-			positives: Vec::new(),
-			negatives: ["EOF".to_owned()].to_vec(),
-		}
-	}
+	pub position: usize,
+	pub positives: Vec<String>,
 }
 
 impl fmt::Debug for ParserError {
@@ -49,7 +20,7 @@ impl fmt::Debug for ParserError {
 			}
 		}
 
-		fn fmt_list(list: &[String]) -> String {
+		fn fmt_list(list: &Vec<String>) -> String {
 			if list.len() == 1 {
 				fmt_item(&list[0])
 			} else {
@@ -66,20 +37,12 @@ impl fmt::Debug for ParserError {
 			}
 		}
 
-		write!(f, "At {:?}, ", self.location.start)?;
+		write!(f, "Unexpected at {:?}", self.position)?;
 
 		if !self.positives.is_empty() {
-			write!(f, "expected {}", fmt_list(&self.positives))?;
-
-			if self.negatives.is_empty() {
-				write!(f, ".")?;
-			} else {
-				write!(f, ", but ")?;
-			}
-		}
-
-		if !self.negatives.is_empty() {
-			write!(f, "unexpected {}", fmt_list(&self.negatives))?;
+			write!(f, ", expected {}.", fmt_list(&self.positives))?;
+		} else {
+			write!(f, ".")?;
 		}
 
 		Ok(())

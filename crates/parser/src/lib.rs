@@ -1,22 +1,23 @@
 pub mod ast;
 mod error;
-mod iter;
-mod parser;
 mod location;
+mod parser;
+mod scanner;
 
-use crate::ast::NodeCollection;
-pub use crate::error::ParserError;
+pub(crate) use {self::parser::*, self::scanner::*, std::fmt};
 
-pub(crate) use crate::{
-	ast::IntoNode,
-	location::*,
-	iter::*,
-	parser::*,
-};
+pub use self::{error::ParserError, parser::Parser};
 
-pub(crate) use std::fmt;
+#[cfg(test)]
+mod tests;
 
-pub fn parse(input: &str) -> Result<Vec<ast::Node>, ParserError> {
+pub fn parse_document(input: String) -> Result<ast::Document, ParserError> {
+	Ok(ast::Document {
+		children: parse(input)?,
+	})
+}
+
+pub fn parse(input: String) -> Result<Vec<ast::Node>, ParserError> {
 	let mut parser = Parser::new(input);
 	let mut nodes = Vec::new();
 

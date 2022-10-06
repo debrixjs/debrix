@@ -1,364 +1,375 @@
+use super::super::lexer::*;
 use crate::*;
-use super::super::lexer::{self, Token};
 
 fn tokenize(input: &str) -> Token {
-	let mut iter = ChIter::new(input.to_owned());
-	let token = lexer::scan(&mut iter).unwrap();
-	assert!(iter.peek_next().is_none());
+	let mut scanner = Scanner::new(input);
+	let mut lexer = Lexer::new(&mut scanner);
+	let token = lexer.scan().unwrap();
+	assert!(scanner.is_done());
 	token
 }
 
 #[test]
 fn test_scan_identifier() {
-	assert_eq!(tokenize("abc"), Token::Identifier("abc".to_string()));
+	let token = tokenize("abc");
+	assert_eq!(token.kind, TokenKind::Identifier);
+	assert_eq!(token.start, 0);
 }
 
 #[test]
 fn test_scan_string_literal() {
-	assert_eq!(tokenize("\"abc\""), Token::StringLiteral("\"abc\"".to_string()));
+	let token = tokenize("\"abc\"");
+	assert_eq!(token.kind, TokenKind::String);
+	assert_eq!(token.start, 0);
 }
 
 #[test]
 fn test_scan_number_literal() {
-	assert_eq!(tokenize("123"), Token::NumberLiteral(123_f64));
+	let token = tokenize("123");
+	assert_eq!(token.kind, TokenKind::Numeric);
+	assert_eq!(token.start, 0);
 }
 
 #[test]
 fn test_scan_number_literal_with_decimal() {
-	assert_eq!(tokenize("12.3"), Token::NumberLiteral(12.3_f64));
+	let token = tokenize("12.3");
+	assert_eq!(token.kind, TokenKind::Numeric);
+	assert_eq!(token.start, 0);
 }
 
 #[test]
 fn test_scan_template_literal() {
-	assert_eq!(tokenize("`abc`"), Token::TemplateLiteral("abc".to_string()));
+	let token = tokenize("`abc`");
+	assert_eq!(token.kind, TokenKind::Template);
+	assert_eq!(token.start, 0);
 }
 
 #[test]
 fn test_scan_keyword_true() {
-	assert_eq!(tokenize("true"), Token::True)
+	assert_eq!(tokenize("true").kind, TokenKind::True)
 }
 
 #[test]
 fn test_scan_keyword_false() {
-	assert_eq!(tokenize("false"), Token::False)
+	assert_eq!(tokenize("false").kind, TokenKind::False)
 }
 
 #[test]
 fn test_scan_keyword_null() {
-	assert_eq!(tokenize("null"), Token::Null)
+	assert_eq!(tokenize("null").kind, TokenKind::Null)
 }
 
 #[test]
 fn test_scan_keyword_delete() {
-	assert_eq!(tokenize("delete"), Token::Delete)
+	assert_eq!(tokenize("delete").kind, TokenKind::Delete)
 }
 
 #[test]
 fn test_scan_keyword_in() {
-	assert_eq!(tokenize("in"), Token::In)
+	assert_eq!(tokenize("in").kind, TokenKind::In)
 }
 
 #[test]
 fn test_scan_keyword_instanceof() {
-	assert_eq!(tokenize("instanceof"), Token::Instanceof)
+	assert_eq!(tokenize("instanceof").kind, TokenKind::Instanceof)
 }
 
 #[test]
 fn test_scan_keyword_new() {
-	assert_eq!(tokenize("new"), Token::New)
+	assert_eq!(tokenize("new").kind, TokenKind::New)
 }
 
 #[test]
 fn test_scan_keyword_return() {
-	assert_eq!(tokenize("return"), Token::Return)
+	assert_eq!(tokenize("return").kind, TokenKind::Return)
 }
 
 #[test]
 fn test_scan_keyword_this() {
-	assert_eq!(tokenize("this"), Token::This)
+	assert_eq!(tokenize("this").kind, TokenKind::This)
 }
 
 #[test]
 fn test_scan_keyword_typeof() {
-	assert_eq!(tokenize("typeof"), Token::Typeof)
+	assert_eq!(tokenize("typeof").kind, TokenKind::Typeof)
 }
 
 #[test]
 fn test_scan_keyword_void() {
-	assert_eq!(tokenize("void"), Token::Void)
+	assert_eq!(tokenize("void").kind, TokenKind::Void)
 }
 
 #[test]
 fn test_scan_plus() {
-	assert_eq!(tokenize("+"), Token::Plus);
+	assert_eq!(tokenize("+").kind, TokenKind::Plus);
 }
 
 #[test]
 fn test_scan_minus() {
-	assert_eq!(tokenize("-"), Token::Minus);
+	assert_eq!(tokenize("-").kind, TokenKind::Minus);
 }
 
 #[test]
 fn test_scan_increment() {
-	assert_eq!(tokenize("++"), Token::Increment);
+	assert_eq!(tokenize("++").kind, TokenKind::Increment);
 }
 
 #[test]
 fn test_scan_decrement() {
-	assert_eq!(tokenize("--"), Token::Decrement);
+	assert_eq!(tokenize("--").kind, TokenKind::Decrement);
 }
 
 #[test]
 fn test_scan_not() {
-	assert_eq!(tokenize("!"), Token::Not);
+	assert_eq!(tokenize("!").kind, TokenKind::Not);
 }
 
 #[test]
 fn test_scan_bit_not() {
-	assert_eq!(tokenize("~"), Token::BitNot);
+	assert_eq!(tokenize("~").kind, TokenKind::BitNot);
 }
 
 #[test]
 fn test_scan_multiply() {
-	assert_eq!(tokenize("*"), Token::Multiply);
+	assert_eq!(tokenize("*").kind, TokenKind::Multiply);
 }
 
 #[test]
 fn test_scan_exponentiate() {
-	assert_eq!(tokenize("**"), Token::Exponentiate);
+	assert_eq!(tokenize("**").kind, TokenKind::Exponentiate);
 }
 
 #[test]
 fn test_scan_divide() {
-	assert_eq!(tokenize("/"), Token::Divide);
+	assert_eq!(tokenize("/").kind, TokenKind::Divide);
 }
 
 #[test]
 fn test_scan_modulo() {
-	assert_eq!(tokenize("%"), Token::Modulo);
+	assert_eq!(tokenize("%").kind, TokenKind::Modulo);
 }
 
 #[test]
 fn test_scan_less_than() {
-	assert_eq!(tokenize("<"), Token::LessThan);
+	assert_eq!(tokenize("<").kind, TokenKind::LessThan);
 }
 
 #[test]
 fn test_scan_greater_than() {
-	assert_eq!(tokenize(">"), Token::GreaterThan);
+	assert_eq!(tokenize(">").kind, TokenKind::GreaterThan);
 }
 
 #[test]
 fn test_scan_less_than_equal() {
-	assert_eq!(tokenize("<="), Token::LessThanEqual);
+	assert_eq!(tokenize("<=").kind, TokenKind::LessThanEqual);
 }
 
 #[test]
 fn test_scan_greater_than_equal() {
-	assert_eq!(tokenize(">="), Token::GreaterThanEqual);
+	assert_eq!(tokenize(">=").kind, TokenKind::GreaterThanEqual);
 }
 
 #[test]
 fn test_scan_left_shift() {
-	assert_eq!(tokenize("<<"), Token::LeftShift);
+	assert_eq!(tokenize("<<").kind, TokenKind::LeftShift);
 }
 
 #[test]
 fn test_scan_right_shift() {
-	assert_eq!(tokenize(">>"), Token::RightShift);
+	assert_eq!(tokenize(">>").kind, TokenKind::RightShift);
 }
 
 #[test]
 fn test_scan_unsigned_right_shift() {
-	assert_eq!(tokenize(">>>"), Token::UnsignedRightShift);
+	assert_eq!(tokenize(">>>").kind, TokenKind::UnsignedRightShift);
 }
 
 #[test]
 fn test_scan_equal() {
-	assert_eq!(tokenize("=="), Token::Equal);
+	assert_eq!(tokenize("==").kind, TokenKind::Equal);
 }
 
 #[test]
 fn test_scan_not_equal() {
-	assert_eq!(tokenize("!="), Token::NotEqual);
+	assert_eq!(tokenize("!=").kind, TokenKind::NotEqual);
 }
 
 #[test]
 fn test_scan_strict_equal() {
-	assert_eq!(tokenize("==="), Token::StrictEqual);
+	assert_eq!(tokenize("===").kind, TokenKind::StrictEqual);
 }
 
 #[test]
 fn test_scan_strict_not_equal() {
-	assert_eq!(tokenize("!=="), Token::StrictNotEqual);
+	assert_eq!(tokenize("!==").kind, TokenKind::StrictNotEqual);
 }
 
 #[test]
 fn test_scan_bit_and() {
-	assert_eq!(tokenize("&"), Token::BitAnd);
+	assert_eq!(tokenize("&").kind, TokenKind::BitAnd);
 }
 
 #[test]
 fn test_scan_bit_xor() {
-	assert_eq!(tokenize("^"), Token::BitXor);
+	assert_eq!(tokenize("^").kind, TokenKind::BitXor);
 }
 
 #[test]
 fn test_scan_bit_or() {
-	assert_eq!(tokenize("|"), Token::BitOr);
+	assert_eq!(tokenize("|").kind, TokenKind::BitOr);
 }
 
 #[test]
 fn test_scan_logical_and() {
-	assert_eq!(tokenize("&&"), Token::LogicalAnd);
+	assert_eq!(tokenize("&&").kind, TokenKind::LogicalAnd);
 }
 
 #[test]
 fn test_scan_logical_or() {
-	assert_eq!(tokenize("||"), Token::LogicalOr);
+	assert_eq!(tokenize("||").kind, TokenKind::LogicalOr);
 }
 
 #[test]
 fn test_scan_question_mark() {
-	assert_eq!(tokenize("?"), Token::QuestionMark);
+	assert_eq!(tokenize("?").kind, TokenKind::QuestionMark);
 }
 
 #[test]
 fn test_scan_colon() {
-	assert_eq!(tokenize(":"), Token::Colon);
+	assert_eq!(tokenize(":").kind, TokenKind::Colon);
 }
 
 #[test]
 fn test_scan_assign() {
-	assert_eq!(tokenize("="), Token::Assign);
+	assert_eq!(tokenize("=").kind, TokenKind::Assign);
 }
 
 #[test]
 fn test_scan_plus_assign() {
-	assert_eq!(tokenize("+="), Token::PlusAssign);
+	assert_eq!(tokenize("+=").kind, TokenKind::PlusAssign);
 }
 
 #[test]
 fn test_scan_minus_assign() {
-	assert_eq!(tokenize("-="), Token::MinusAssign);
+	assert_eq!(tokenize("-=").kind, TokenKind::MinusAssign);
 }
 
 #[test]
 fn test_scan_multiply_assign() {
-	assert_eq!(tokenize("*="), Token::MultiplyAssign);
+	assert_eq!(tokenize("*=").kind, TokenKind::MultiplyAssign);
 }
 
 #[test]
 fn test_scan_exponentiate_assign() {
-	assert_eq!(tokenize("**="), Token::ExponentiateAssign);
+	assert_eq!(tokenize("**=").kind, TokenKind::ExponentiateAssign);
 }
 
 #[test]
 fn test_scan_divide_assign() {
-	assert_eq!(tokenize("/="), Token::DivideAssign);
+	assert_eq!(tokenize("/=").kind, TokenKind::DivideAssign);
 }
 
 #[test]
 fn test_scan_modulo_assign() {
-	assert_eq!(tokenize("%="), Token::ModuloAssign);
+	assert_eq!(tokenize("%=").kind, TokenKind::ModuloAssign);
 }
 
 #[test]
 fn test_scan_left_shift_assign() {
-	assert_eq!(tokenize("<<="), Token::LeftShiftAssign);
+	assert_eq!(tokenize("<<=").kind, TokenKind::LeftShiftAssign);
 }
 
 #[test]
 fn test_scan_right_shift_assign() {
-	assert_eq!(tokenize(">>="), Token::RightShiftAssign);
+	assert_eq!(tokenize(">>=").kind, TokenKind::RightShiftAssign);
 }
 
 #[test]
 fn test_scan_unsigned_right_shift_assign() {
-	assert_eq!(tokenize(">>>="), Token::UnsignedRightShiftAssign);
+	assert_eq!(tokenize(">>>=").kind, TokenKind::UnsignedRightShiftAssign);
 }
 
 #[test]
 fn test_scan_bit_and_assign() {
-	assert_eq!(tokenize("&="), Token::BitAndAssign);
+	assert_eq!(tokenize("&=").kind, TokenKind::BitAndAssign);
 }
 
 #[test]
 fn test_scan_bit_xor_assign() {
-	assert_eq!(tokenize("^="), Token::BitXorAssign);
+	assert_eq!(tokenize("^=").kind, TokenKind::BitXorAssign);
 }
 
 #[test]
 fn test_scan_bit_or_assign() {
-	assert_eq!(tokenize("|="), Token::BitOrAssign);
+	assert_eq!(tokenize("|=").kind, TokenKind::BitOrAssign);
 }
 
 #[test]
 fn test_scan_comma() {
-	assert_eq!(tokenize(","), Token::Comma);
+	assert_eq!(tokenize(",").kind, TokenKind::Comma);
 }
 
 #[test]
 fn test_scan_arrow() {
-	assert_eq!(tokenize("=>"), Token::Arrow);
+	assert_eq!(tokenize("=>").kind, TokenKind::Arrow);
 }
 
 #[test]
 fn test_scan_open_paren() {
-	assert_eq!(tokenize("("), Token::OpenParen);
+	assert_eq!(tokenize("(").kind, TokenKind::OpenParen);
 }
 
 #[test]
 fn test_scan_close_paren() {
-	assert_eq!(tokenize(")"), Token::CloseParen);
+	assert_eq!(tokenize(")").kind, TokenKind::CloseParen);
 }
 
 #[test]
 fn test_scan_open_bracket() {
-	assert_eq!(tokenize("["), Token::OpenBracket);
+	assert_eq!(tokenize("[").kind, TokenKind::OpenBracket);
 }
 
 #[test]
 fn test_scan_close_bracket() {
-	assert_eq!(tokenize("]"), Token::CloseBracket);
+	assert_eq!(tokenize("]").kind, TokenKind::CloseBracket);
 }
 
 #[test]
 fn test_scan_open_brace() {
-	assert_eq!(tokenize("{"), Token::OpenBrace);
+	assert_eq!(tokenize("{").kind, TokenKind::OpenBrace);
 }
 
 #[test]
 fn test_scan_close_brace() {
-	assert_eq!(tokenize("}"), Token::CloseBrace);
+	assert_eq!(tokenize("}").kind, TokenKind::CloseBrace);
 }
 
 #[test]
 fn test_scan_dot() {
-	assert_eq!(tokenize("."), Token::Dot);
+	assert_eq!(tokenize(".").kind, TokenKind::Dot);
 }
 
 #[test]
 fn test_scan_ellipsis() {
-	assert_eq!(tokenize("..."), Token::Ellipsis);
+	assert_eq!(tokenize("...").kind, TokenKind::Ellipsis);
 }
 
 #[test]
 fn test_scan_semicolon() {
-	assert_eq!(tokenize(";"), Token::Semicolon);
+	assert_eq!(tokenize(";").kind, TokenKind::Semicolon);
 }
 
 #[test]
 fn test_skip_whitespace() {
-	assert_eq!(tokenize(" foo"), Token::Identifier("foo".to_string()));
+	assert_eq!(tokenize(" foo").kind, TokenKind::Identifier);
 }
 
 #[test]
 fn test_skip_comment() {
-	assert_eq!(tokenize("//foo\nbar"), Token::Identifier("bar".to_string()));
+	assert_eq!(tokenize("//foo\nbar").kind, TokenKind::Identifier);
 }
 
 #[test]
 fn test_skip_multiline_comment() {
-	assert_eq!(tokenize("/*\nfoo\n*/bar"), Token::Identifier("bar".to_string()));
+	assert_eq!(tokenize("/*\nfoo\n*/bar").kind, TokenKind::Identifier);
 }

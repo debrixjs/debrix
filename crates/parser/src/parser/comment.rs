@@ -2,40 +2,42 @@ use crate::*;
 
 impl Parser {
 	pub fn parse_comment(&mut self) -> Result<ast::Comment, ParserError> {
-		let start = self.iter.position();
+		let start = self.scanner.cursor();
 
-		self.expect_str("<!--")?;
+		if !self.scanner.take("<!--") {
+			return Err(self.expected(&["<!--"]));
+		}
 
 		let mut comment = String::new();
 
-		while let Some(ch) = self.iter.next() {
-			if ch == '-' {
-				if let Some(ch) = self.iter.next() {
-					if ch == '-' {
-						if let Some(ch) = self.iter.next() {
-							if ch == '>' {
+		while let Some(char) = self.scanner.peek().cloned() {
+			if char == '-' {
+				if let Some(char) = self.scanner.next() {
+					if char == &'-' {
+						if let Some(char) = self.scanner.next() {
+							if char == &'>' {
 								break;
 							} else {
 								comment.push('-');
 								comment.push('-');
-								comment.push(ch);
+								comment.push(char.to_owned());
 							}
 						}
 					} else {
 						comment.push('-');
-						comment.push(ch);
+						comment.push(char.to_owned());
 					}
 				}
 			}
 
-			comment.push(ch);
+			comment.push(char.to_owned());
+			self.scanner.next();
 		}
 
-		let end = self.iter.position();
-
 		Ok(ast::Comment {
-			location: Location::new(start, end),
-			comment
+			start,
+			end: self.scanner.cursor(),
+			comment,
 		})
 	}
 }
@@ -46,9 +48,9 @@ mod tests {
 
 	#[test]
 	fn test_comment() {
-		let mut parser = Parser::new("<!-- hello world -->");
+		let mut parser = Parser::new("<!-- hello world -->".to_owned());
 		let comment = parser.parse_comment().unwrap();
-		
+
 		assert_eq!(comment.comment, " hello world ");
 	}
 }

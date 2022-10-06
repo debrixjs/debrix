@@ -1,23 +1,27 @@
 use crate::ast::*;
 
+#[derive(Debug)]
 pub struct Text {
-	pub location: Location,
+	pub start: usize,
+	pub end: usize,
 	pub content: String,
 }
 
-impl IntoNode for Text {
-	fn into_node(self) -> Node {
-		Node::Text(self)
+impl From<Text> for Node {
+	fn from(node: Text) -> Node {
+		Node::Text(node)
 	}
 }
 
+#[derive(Debug)]
 pub struct TextBinding {
-	pub location: Location,
+	pub start: usize,
+	pub end: usize,
 	pub expression: javascript::Expression,
 }
 
-impl IntoNode for TextBinding {
-	fn into_node(self) -> Node {
-		Node::TextBinding(self)
+impl From<TextBinding> for Node {
+	fn from(node: TextBinding) -> Node {
+		Node::TextBinding(node)
 	}
 }
