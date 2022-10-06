@@ -4,7 +4,7 @@ use ast::NodeCollection;
 
 use crate::{render::RESERVED_JAVASCRIPT_KEYWORDS, *};
 
-const INTERNAL_MOD: &str = "@debrixjs/internal";
+const INTERNAL_MOD: &str = "@debrix/internal";
 
 fn serialize_string_literal(lit: &ast::StringLiteral) -> String {
 	lit.quote.to_string() + &lit.value + &lit.quote.to_string()
