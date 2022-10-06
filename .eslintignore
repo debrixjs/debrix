@@ -1,4 +1,6 @@
 packages/compiler/lib/
+packages/compiler/node/
+packages/compiler/wasm/
 packages/compiler/index.js
 packages/compiler/index.d.ts
 

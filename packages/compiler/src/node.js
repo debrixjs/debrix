@@ -1,18 +1,11 @@
-let compiler;
-
 /* #ESM */
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-// Will not be resolved because require is imported.
-compiler = require('./lib/debrix.node');
 /* /ESM */
-
-/* #CJS */
-// Will be resolved to ./lib/...
-compiler = require('lib/debrix.node');
-/* /CJS */
+const compiler = require('../lib/debrix.node');
 
 import { Target, validate } from './_shared.js';
+export { Target };
 
 export class CompilerError extends Error {
 	constructor(msg) { super(msg); }

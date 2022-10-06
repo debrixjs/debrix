@@ -12,7 +12,6 @@ const require = createRequire(import.meta.url);
 
 const production = process.argv.includes('--production');
 const rootdir = path.resolve();
-const outdir = path.resolve('dist');
 
 /** @type {import('esbuild').BuildOptions} */
 const sharedConfig = {
@@ -23,8 +22,8 @@ const sharedConfig = {
 		{
 			name: 'library',
 			setup(build) {
-				build.onResolve({ filter: /^lib\// }, args => ({
-					path: './' + args.path,
+				build.onResolve({ filter: /^[./]*lib/ }, args => ({
+					path: args.path,
 					external: true
 				}));
 			},
@@ -73,7 +72,7 @@ function replace({ replace, filter }) {
 		setup(build) {
 			build.onLoad({ filter }, async args => {
 				let contents = await readFile(args.path, 'utf8');
-				
+
 				for (const [searchValue, replaceValue] of replace)
 					contents = contents.replace(searchValue, replaceValue);
 
@@ -92,26 +91,6 @@ function escapeRegExp(string) {
 }
 
 /**
- * @param  {...(() => Promise<any>)} tasks
- */
-async function concurrently(...tasks) {
-	let i = 0;
-
-	const next = async () => {
-		if (i === tasks.length)
-			return;
-
-		try {
-			await tasks[i++]();
-		} catch { }
-		await next();
-	};
-
-	await Promise.all(Array.from({ length: os.cpus().length }, next));
-}
-
-/**
- * 
  * @param {string} command 
  * @param {import('node:child_process').ExecOptions} [options]
  * @returns {Promise<{ stdout: any, stderr: any }>}
@@ -130,17 +109,17 @@ function exec(command, options) {
 	});
 }
 
-await rm(outdir, { recursive: true, force: true });
-await mkdir(outdir, { recursive: true });
+await rm(path.resolve(rootdir, 'wasm'), { recursive: true, force: true });
+await mkdir(path.resolve(rootdir, 'wasm'), { recursive: true });
 
-await concurrently(
+await Promise.all([
 	async () => {
 		await exec([
 			'node',
 			require.resolve('cargo-cp-artifact/bin/cargo-cp-artifact.js'),
 			'-a', 'cdylib',
 			'debrix_node',
-			path.resolve(outdir, 'lib/debrix.node'),
+			path.resolve(rootdir, 'lib/debrix.node'),
 			'--',
 			'cargo',
 			'build',
@@ -157,7 +136,7 @@ await concurrently(
 					platform: 'node',
 					entryPoints: [path.resolve(rootdir, 'src/node.js')],
 					format: 'cjs',
-					outfile: path.resolve(outdir, 'node.js'),
+					outfile: path.resolve(rootdir, 'node/index.js'),
 					plugins: [
 						...sharedConfig.plugins || [],
 						replace({
@@ -176,19 +155,15 @@ await concurrently(
 					platform: 'node',
 					entryPoints: [path.resolve(rootdir, 'src/node.js')],
 					format: 'esm',
-					outfile: path.resolve(outdir, 'node.mjs'),
-					plugins: [
-						...sharedConfig.plugins || [],
-						replace({
-							replace: [
-								[/\/\*\s*#CJS\s*\*\/[^]+?\/\*\s*\/CJS\s*\*\//g, '']
-							],
-							filter: /\.js$/
-						})
-					],
+					outfile: path.resolve(rootdir, 'node/index.mjs')
 				}
 			),
 		]);
+
+		await writeFile(path.resolve(rootdir, 'index.js'), 'module.exports = require(\'./node\');\n');
+		await writeFile(path.resolve(rootdir, 'index.mjs'), 'export * from \'./node/index.mjs\';\n');
+		await writeFile(path.resolve(rootdir, 'index.d.ts'), 'export * from \'./types/node\';\n');
+		await writeFile(path.resolve(rootdir, 'node/index.d.ts'), 'export * from \'../types/node\';\n');
 	},
 	async () => {
 		const dir = await mkdtemp(path.join(os.tmpdir(), 'debrix-'));
@@ -219,7 +194,7 @@ module.exports = __decode(\`${wasm.toString('base64')}\`);
 `;
 
 		await writeFile(
-			path.resolve(outdir, 'lib/debrix.wasm.js'),
+			path.resolve(rootdir, 'lib/debrix.wasm.js'),
 			production ? (await esbuild.transform(bytesm, { minify: true })).code : bytesm
 		);
 
@@ -231,9 +206,9 @@ module.exports = __decode(\`${wasm.toString('base64')}\`);
 					...sharedConfig,
 					entryPoints: [path.resolve(rootdir, 'src/wasm.js')],
 					format: 'cjs',
-					outfile: path.resolve(outdir, 'wasm.js'),
+					outfile: path.resolve(rootdir, 'wasm/index.js'),
 					plugins: [
-						virtual({ 'lib/__debrix.wasm.js': js }),
+						virtual({ '__debrix.wasm.js': js }),
 						...sharedConfig.plugins || [],
 					]
 				}
@@ -244,13 +219,15 @@ module.exports = __decode(\`${wasm.toString('base64')}\`);
 					...sharedConfig,
 					entryPoints: [path.resolve(rootdir, 'src/wasm.js')],
 					format: 'esm',
-					outfile: path.resolve(outdir, 'wasm.mjs'),
+					outfile: path.resolve(rootdir, 'wasm/index.mjs'),
 					plugins: [
-						virtual({ 'lib/__debrix.wasm.js': js }),
+						virtual({ '__debrix.wasm.js': js }),
 						...sharedConfig.plugins || [],
 					]
 				}
 			),
 		]);
+
+		await writeFile(path.resolve(rootdir, 'wasm/index.d.ts'), 'export * from \'../types/wasm\';\n');
 	}
-);
+].map(fn => fn()));

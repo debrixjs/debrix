@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as node from '../dist/node.mjs';
-import * as wasm from '../dist/wasm.mjs';
+import * as node from '../node/index.mjs';
+import * as wasm from '../wasm/index.mjs';
 
 const document = `
 	using #model from 'self.model.ts'

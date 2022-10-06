@@ -1,6 +1,7 @@
-import { initSync, build as _build } from 'lib/__debrix.wasm.js';
-import bytes from 'lib/debrix.wasm.js';
+import { initSync, build as _build } from '__debrix.wasm.js';
+import bytes from '../lib/debrix.wasm.js';
 import { Target, validate } from './_shared.js';
+export { Target };
 
 initSync(bytes);
 

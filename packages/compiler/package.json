@@ -14,14 +14,19 @@
 	"author": "Elias Skogevall",
 	"exports": {
 		".": {
-			"import": "./dist/node.mjs",
-			"require": "./dist/node.js",
-			"types": "./types/node.d.ts"
+			"import": "./index.mjs",
+			"require": "./index.js",
+			"types": "./index.d.ts"
+		},
+		"./node": {
+			"import": "./wasm/index.mjs",
+			"require": "./wasm/index.js",
+			"types": "./wasm/index.d.ts"
 		},
 		"./wasm": {
-			"import": "./dist/wasm.mjs",
-			"require": "./dist/wasm.js",
-			"types": "./types/wasm.d.ts"
+			"import": "./wasm/index.mjs",
+			"require": "./wasm/index.js",
+			"types": "./wasm/index.d.ts"
 		}
 	},
 	"files": [
