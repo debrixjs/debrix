@@ -1,3 +1,12 @@
-types/
-index.js
-index.mjs
+packages/compiler/lib/
+packages/compiler/index.js
+packages/compiler/index.d.ts
+
+packages/internal/types/
+packages/internal/index.js
+packages/internal/index.mjs
+
+packages/runtime/types/
+packages/runtime/index.js
+packages/runtime/index.mjs
+
