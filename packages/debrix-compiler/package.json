@@ -30,9 +30,13 @@
 		}
 	},
 	"files": [
-		"./dist/",
+		"./lib/",
+		"./node/",
+		"./wasm/",
 		"./types/",
-		"./install.mjs"
+		"./index.js",
+		"./index.mjs",
+		"./index.d.ts"
 	],
 	"scripts": {
 		"build": "node build.mjs",
