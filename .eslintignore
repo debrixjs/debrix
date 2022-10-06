@@ -1,14 +1,11 @@
-packages/compiler/lib/
-packages/compiler/node/
-packages/compiler/wasm/
-packages/compiler/index.js
-packages/compiler/index.d.ts
+packages/debrix-compiler/lib/
+packages/debrix-compiler/node/
+packages/debrix-compiler/wasm/
+packages/debrix-compiler/index.*
 
-packages/internal/types/
-packages/internal/index.js
-packages/internal/index.mjs
+packages/debrix-internal/types/
+packages/debrix-internal/index.*
 
-packages/runtime/types/
-packages/runtime/index.js
-packages/runtime/index.mjs
+packages/debrix/types/
+packages/debrix/index.*
 

@@ -1,5 +1,5 @@
 [workspace]
 members = [
 	"crates/*",
-	"packages/compiler/crates/*"
+	"packages/debrix-compiler/crates/*"
 ]

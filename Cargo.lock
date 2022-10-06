@@ -15,36 +15,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "debrix_node"
+name = "debrix_compiler"
 version = "0.1.0"
 dependencies = [
- "debrix_shared",
- "debrixc",
+ "debrix_parser",
+]
+
+[[package]]
+name = "debrix_parser"
+version = "0.1.0"
+
+[[package]]
+name = "dist_node"
+version = "0.1.0"
+dependencies = [
+ "debrix_compiler",
+ "dist_shared",
  "neon",
 ]
 
 [[package]]
-name = "debrix_shared"
+name = "dist_shared"
 version = "0.1.0"
 dependencies = [
- "debrixc",
+ "debrix_compiler",
 ]
 
 [[package]]
-name = "debrix_wasm"
+name = "dist_wasm"
 version = "0.1.0"
 dependencies = [
- "debrix_shared",
- "debrixc",
+ "debrix_compiler",
+ "dist_shared",
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "debrixc"
-version = "0.1.0"
-dependencies = [
- "parser",
 ]
 
 [[package]]
@@ -121,10 +125,6 @@ name = "once_cell"
 version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f7254b99e31cad77da24b08ebf628882739a608578bb1bcdfc1f9c21260d7c0"
-
-[[package]]
-name = "parser"
-version = "0.1.0"
 
 [[package]]
 name = "proc-macro2"

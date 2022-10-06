@@ -1,7 +1,9 @@
 {
 	"license": "MIT",
 	"workspaces": [
-		"packages/*"
+		"packages/debrix",
+		"packages/debrix-internal",
+		"packages/debrix-compiler"
 	],
 	"scripts": {
 		"build": "npm run build --workspaces",
