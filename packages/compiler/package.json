@@ -1,40 +1,53 @@
 {
 	"name": "@debrixjs/compiler",
 	"version": "0.1.0-1",
-	"description": "Native node version of debrix compiler (debrixc).",
+	"description": "JavaScript distribution of debrix's compiler.",
 	"keywords": [
-		"debrixc",
 		"debrix",
 		"compiler",
-		"node"
+		"node",
+		"wasm"
 	],
 	"homepage": "https://github.com/debrixjs/compiler/tree/main/packages/compiler#readme",
 	"repository": "https://github.com/debrixjs/compiler",
 	"license": "MIT",
 	"author": "Elias Skogevall",
-	"main": "./index.js",
-	"types": "./index.d.ts",
-	"bin": {
-		"debrixc": "./bin/debrixc"
+	"exports": {
+		".": {
+			"import": "./dist/node.mjs",
+			"require": "./dist/node.js",
+			"types": "./types/node.d.ts"
+		},
+		"./wasm": {
+			"import": "./dist/wasm.mjs",
+			"require": "./dist/wasm.js",
+			"types": "./types/wasm.d.ts"
+		}
 	},
 	"files": [
-		"./bin/",
-		"./lib/",
-		"./index.js",
-		"./index.mjs",
-		"./index.d.ts",
-		"./install.js"
+		"./dist/",
+		"./types/",
+		"./install.mjs"
 	],
 	"scripts": {
-		"build": "cargo-cp-artifact -a cdylib debrixc-js lib/debrixc.node -- cargo build --message-format=json-render-diagnostics",
-		"build:release": "npm run build -- --release",
+		"build": "node build.mjs",
+		"build:release": "node build.mjs --production",
+		"test": "node test/index.mjs",
+		"_postinstall": "node install.mjs",
 		"prepublishOnly": "npm run build:release"
 	},
 	"devDependencies": {
-		"cargo-cp-artifact": "0.1.x"
+		"@rollup/pluginutils": "^4.2.1",
+		"cargo-cp-artifact": "0.1.x",
+		"concurrently": "^7.4.0",
+		"esbuild": "^0.15.10",
+		"esbuild-plugin-alias": "^0.2.1",
+		"rollup": "2.x",
+		"rollup-plugin-base64": "1.x",
+		"rollup-plugin-terser": "7.x"
 	},
 	"peerDependencies": {
-		"@debrixjs/internal": ">=0.1.0-0"
+		"@debrixjs/internal": "*"
 	},
 	"engines": {
 		"node": ">=10"

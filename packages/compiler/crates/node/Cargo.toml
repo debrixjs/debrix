@@ -1,10 +1,9 @@
 [package]
-name = "debrixc-js"
+name = "debrix_node"
 version = "0.1.0"
 authors = ["Elias Skogevall"]
 license = "MIT"
 edition = "2018"
-exclude = ["index.node"]
 
 [lib]
 crate-type = ["cdylib"]
@@ -19,4 +18,7 @@ default-features = false
 features = ["napi-6"]
 
 [dependencies.debrixc]
-path = "../../crates/debrixc"
+path = "../../../../crates/debrixc"
+
+[dependencies.debrix_shared]
+path = "../_shared"

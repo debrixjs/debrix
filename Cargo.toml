@@ -1,6 +1,5 @@
 [workspace]
 members = [
 	"crates/*",
-	"packages/compiler",
-	"packages/compiler-wasm",
+	"packages/compiler/crates/*"
 ]

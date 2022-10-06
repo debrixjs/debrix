@@ -1,14 +1,16 @@
-const { access, mkdir, writeFile, readFile, chmod } = require('node:fs/promises');
-const { createWriteStream } = require('node:fs');
-const { https } = require('follow-redirects');
-const { resolve } = require('node:path');
+// @ts-check
 
-const PREFIX = '[debrix/compiler]';
+import { access, mkdir, writeFile, readFile, chmod } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import { https } from 'follow-redirects';
+import { resolve } from 'node:path';
+
+const PREFIX = '[@debrix/compiler]';
 const DEFAULT_VERSION = 'latest';
 
+/** @returns {never} */
 function unreachable() {
-	console.error(`${PREFIX} ERROR: Reached an unreachable state!\n`);
-	process.exit(1);
+	throw new Error(`${PREFIX} ERROR: unreachable!\n`);
 }
 
 async function exists(filename) {
@@ -52,7 +54,7 @@ function get_releases() {
 		}, (response) => {
 			response.on('error', reject);
 
-			if (!(response.statusCode >= 200 && response.statusCode < 300)) {
+			if (!(response.statusCode && response.statusCode >= 200 && response.statusCode < 300)) {
 				console.error(`\n${PREFIX} ERROR: Unable to fetch releases (${response.statusCode}). Please submit an issue at https://github.com/debrix/compiler/issues/new.`);
 				return;
 			}
@@ -149,104 +151,102 @@ async function find_package(dir) {
 	}
 }
 
-async function main() {
-	if (process.env.DEBRIXC_NO_INSTALL) {
-		console.log(`${PREFIX} NOTE: Enviroment variable DEBRIXC_NO_INSTALL was set. This will cause the installer to always exit.`);
-	}
-
-	if (process.env.DEBRIXC_NO_CACHE) {
-		console.log(`${PREFIX} NOTE: Enviroment variable DEBRIXC_NO_CACHE was set. This will cause the installer to always install the binary, whether or not the binary is already installed.`);
-	}
-
-	if (process.env.DEBRIXC_VERSION) {
-		console.log(`${PREFIX} NOTE: Enviroment variable DEBRIXC_VERSION was set. This will cause the installer to try install the version specified in the variable.`);
-	}
-
-	if (
-		process.env.DEBRIXC_NO_INSTALL
-		|| process.env.DEBRIXC_NO_CACHE
-		|| process.env.DEBRIXC_VERSION
-	) {
-		console.log('');
-	}
-
-	if (process.env.DEBRIXC_NO_INSTALL) {
-		console.log(`${PREFIX} Skipping installation...`);
-		process.exit(0);
-	}
-
-	const SUPPORTED_PLATFORMS = new Set(['darwin', 'linux', 'win32']);
-	if (!SUPPORTED_PLATFORMS.has(process.platform)) {
-		console.error(`${PREFIX} ERROR: Build for current platform (${process.platform}) is unavailable.\n`);
-		process.exit(1);
-	}
-
-	const input_version = await get_input_version();
-	const version = await get_version(input_version);
-	const formatted_version = format_version(version);
-	const binary_filename = get_binary_filename();
-
-	if (await exists('bin')) {
-		if (
-			!process.env.DEBRIXC_NO_CACHE
-			&& await exists('bin/version.txt')
-			&& await exists(binary_filename)
-			&& await readFile('bin/version.txt', 'utf-8') === version
-		) {
-			// console.log(`${PREFIX} Binary is already installed. Skipping installation... `);
-			process.exit(0);
-		}
-	} else {
-		await mkdir('bin');
-	}
-
-	const binary_dest = createWriteStream(binary_filename);
-	const binary_download = get_binary_download(version);
-
-	process.stdout.write(`${PREFIX} Downloading binary ${formatted_version}...`);
-
-	await new Promise((resolve, reject) => {
-		const request = https.request(binary_download, (response) => {
-			if (!(response.statusCode >= 200 && response.statusCode < 300)) {
-				console.error(`\n${PREFIX} ERROR: Unable to download binary from "${binary_download}" (${response.statusCode}).\n`);
-				process.exit(1);
-			}
-
-			response.on('error', (err) => {
-				console.log('');
-				reject(err);
-			});
-
-			response.on('close', () => {
-				console.log('');
-				resolve();
-			});
-
-			if (response.headers['content-length']) {
-				const length = parseInt(response.headers['content-length']);
-				let prevProgress = '0';
-				let currentLength = 0;
-
-				process.stdout.write('\x1b[3D (0%)...');
-
-				response.on('data', chunk => {
-					currentLength += chunk.length;
-					const progress = (currentLength / length * 100).toFixed(0);
-					process.stdout.write(`\x1b[${prevProgress.length + 5}D${progress}${prevProgress.length === progress.length ? '\x1b[5C' : '%)...'}`);
-					prevProgress = progress;
-					binary_dest.write(chunk);
-				});
-			} else {
-				response.pipe(binary_dest);
-			}
-		});
-		request.on('error', err => { throw err; });
-		request.end();
-	});
-
-	await new Promise((resolve) => binary_dest.close(resolve));
-	await chmod(binary_filename, '0775');
-	await writeFile('bin/version.txt', version);
+if (process.env.DEBRIXC_NO_INSTALL) {
+	console.log(`${PREFIX} NOTE: Enviroment variable DEBRIXC_NO_INSTALL was set. This will cause the installer to always exit.`);
 }
 
-main();
+if (process.env.DEBRIXC_NO_CACHE) {
+	console.log(`${PREFIX} NOTE: Enviroment variable DEBRIXC_NO_CACHE was set. This will cause the installer to always install the binary, whether or not the binary is already installed.`);
+}
+
+if (process.env.DEBRIXC_VERSION) {
+	console.log(`${PREFIX} NOTE: Enviroment variable DEBRIXC_VERSION was set. This will cause the installer to try install the version specified in the variable.`);
+}
+
+if (
+	process.env.DEBRIXC_NO_INSTALL
+	|| process.env.DEBRIXC_NO_CACHE
+	|| process.env.DEBRIXC_VERSION
+) {
+	console.log('');
+}
+
+if (process.env.DEBRIXC_NO_INSTALL) {
+	console.log(`${PREFIX} Skipping installation...`);
+	process.exit(0);
+}
+
+const SUPPORTED_PLATFORMS = new Set(['darwin', 'linux', 'win32']);
+if (!SUPPORTED_PLATFORMS.has(process.platform)) {
+	console.error(`${PREFIX} ERROR: Build for current platform (${process.platform}) is unavailable.\n`);
+	process.exit(1);
+}
+
+const input_version = await get_input_version();
+const version = await get_version(input_version);
+const formatted_version = format_version(version);
+const binary_filename = get_binary_filename();
+
+if (await exists('bin')) {
+	if (
+		!process.env.DEBRIXC_NO_CACHE
+		&& await exists('bin/version.txt')
+		&& await exists(binary_filename)
+		&& await readFile('bin/version.txt', 'utf-8') === version
+	) {
+		// console.log(`${PREFIX} Binary is already installed. Skipping installation... `);
+		process.exit(0);
+	}
+} else {
+	await mkdir('bin');
+}
+
+const binary_dest = createWriteStream(binary_filename);
+const binary_download = get_binary_download(version);
+
+process.stdout.write(`${PREFIX} Downloading binary ${formatted_version}...`);
+
+/** @type {Promise<void>} */
+const download = new Promise((resolve, reject) => {
+	const request = https.request(binary_download, (response) => {
+		if (!(response.statusCode && response.statusCode >= 200 && response.statusCode < 300)) {
+			console.error(`\n${PREFIX} ERROR: Unable to download binary from "${binary_download}" (${response.statusCode}).\n`);
+			process.exit(1);
+		}
+
+		response.on('error', (err) => {
+			console.log('');
+			reject(err);
+		});
+
+		response.on('close', () => {
+			console.log('');
+			resolve();
+		});
+
+		if (response.headers['content-length']) {
+			const length = parseInt(response.headers['content-length']);
+			let prevProgress = '0';
+			let currentLength = 0;
+
+			process.stdout.write('\x1b[3D (0%)...');
+
+			response.on('data', chunk => {
+				currentLength += chunk.length;
+				const progress = (currentLength / length * 100).toFixed(0);
+				process.stdout.write(`\x1b[${prevProgress.length + 5}D${progress}${prevProgress.length === progress.length ? '\x1b[5C' : '%)...'}`);
+				prevProgress = progress;
+				binary_dest.write(chunk);
+			});
+		} else {
+			response.pipe(binary_dest);
+		}
+	});
+	request.on('error', err => { throw err; });
+	request.end();
+});
+
+await download;
+await new Promise((resolve) => binary_dest.close(resolve));
+await chmod(binary_filename, '0775');
+await writeFile('bin/version.txt', version);
