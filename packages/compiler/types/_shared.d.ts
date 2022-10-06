@@ -14,13 +14,13 @@ export interface BuildResult {
 export type Error = CompilerError | ParserError;
 
 export class CompilerError extends globalThis.Error {
-	start: number
-	end: number
-	_message: string
+	start: number;
+	end: number;
+	_message: string;
 }
 
 export class ParserError extends globalThis.Error {
-	start: number
-	end: never
-	positives: string[]
+	start: number;
+	end: never;
+	positives: string[];
 }
