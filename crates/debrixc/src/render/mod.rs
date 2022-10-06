@@ -2,14 +2,17 @@ mod chunk;
 mod dom;
 
 pub use chunk::Chunk;
+use crate::error::Error;
 
-use pest::iterators::Pairs;
-use crate::{parser::R, error::Error};
+pub use dom::render as render_dom;
 
-pub fn render_dom(pairs: Pairs<R>) -> Result<Chunk, Error<R>> {
-	let mut renderer = dom::Renderer::new();
-	match renderer.render(pairs) {
-		Ok(chunk) => Ok(chunk),
-		Err(err) => Err(err),
-	}
-}
+#[rustfmt::skip]
+pub(crate) const RESERVED_JAVASCRIPT_KEYWORDS: [&str; 64] = [
+	"abstract", "arguments", "await", "boolean", "break", "byte", "case", "catch", "char",
+	"class", "const", "continue", "debugger", "default", "delete", "do", "double", "else", "enum",
+	"eval", "export", "extends", "false", "final", "finally", "float", "for", "function", "goto",
+	"if", "implements", "import", "in", "instanceof", "int", "interface", "let", "long", "native",
+	"new", "null", "package", "private", "protected", "public", "return", "short", "static",
+	"super", "switch", "synchronized", "this", "throw", "throws", "transient", "true", "try",
+	"typeof", "var", "void", "volatile", "while", "with", "yield"
+];

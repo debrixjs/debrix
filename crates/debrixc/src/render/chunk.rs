@@ -1,7 +1,8 @@
 pub struct Chunk {
 	pub source: String,
-	pub mappings: Vec<(usize, usize, usize, usize)>,
-	pos: (usize, usize),
+	/// From-to mappings of the source.
+	pub mappings: Vec<(usize, usize)>,
+	pos: usize,
 }
 
 impl Chunk {
@@ -9,48 +10,28 @@ impl Chunk {
 		Self {
 			source: String::new(),
 			mappings: Vec::new(),
-			pos: (0, 0),
+			pos: 0,
 		}
 	}
 
-	pub fn map(&mut self, pos: (usize, usize)) -> &mut Self {
-		self.mappings.push((pos.0, pos.1, self.pos.0, self.pos.1));
+	pub fn map(&mut self, pos: usize) -> &mut Self {
+		self.mappings.push((pos, self.pos));
 		self
 	}
 
 	pub fn write(&mut self, s: &str) -> &mut Self {
 		self.source.push_str(s);
-
-		for c in s.chars() {
-			if c == '\n' {
-				self.pos.0 += 1;
-				self.pos.1 = 0;
-			} else {
-				self.pos.1 += 1;
-			}
-		}
-
+		self.pos += s.len();
 		self
 	}
 
-	pub fn append(&mut self, chunk: &Self, ident: usize) -> &mut Self {
-		let mut lines = (&chunk.source).lines().into_iter().peekable();
-
-		while let Some(line) = lines.next() {
-			self.write(&"\t".repeat(ident));
-			self.write(line);
-
-			if lines.peek().is_some() {
-				self.write("\n");
-			}
-		}
+	pub fn append(&mut self, chunk: &Self) -> &mut Self {
+		self.source += &chunk.source;
 
 		for mapping in &chunk.mappings {
 			self.mappings.push((
 				mapping.0,
-				mapping.1,
-				self.pos.0 + mapping.2,
-				self.pos.1 + mapping.3,
+				self.pos + mapping.1,
 			));
 		}
 

@@ -1,20 +1,27 @@
-mod debug;
 mod error;
-mod parser;
 mod render;
 mod utils;
 
-use error::{Error, ParsingError};
-use render::{render_dom, Chunk};
-use parser::R;
+pub(crate) use {parser::ast, utils::*};
 
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
+use render::{render_dom};
 
-pub fn build(input: &str) -> Result<Chunk, Error<R>> {
-	match parser::parse(input) {
-		Ok(pairs) => render_dom(pairs),
-		Err(e) => Err(ParsingError::new_from_err(input, e).into_err()),
+pub use render::Chunk;
+pub use error::Error;
+
+pub enum Target {
+	Client,
+	Hydration,
+	Server,
+}
+
+pub fn build(input: String, target: Target) -> Result<Chunk, Error> {
+	match parser::parse_document(input) {
+		Ok(document) => match target {
+			Target::Client => render_dom(document),
+			Target::Hydration => unimplemented!(),
+			Target::Server => unimplemented!(),
+		},
+		Err(err) => Err(Error::ParserError(err)),
 	}
 }
