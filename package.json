@@ -1,20 +1,21 @@
 {
+	"name": "debrix",
+	"private": true,
 	"license": "MIT",
 	"workspaces": [
-		"packages/debrix",
-		"packages/debrix-internal",
-		"packages/debrix-compiler"
+		"packages/*"
 	],
 	"scripts": {
-		"build": "npm run build --workspaces",
-		"build:release": "npm run build:release --workspaces",
+		"lerna": "lerna",
+		"build": "lerna run build:release",
 		"lint": "eslint --ext .js,.ts packages/",
-		"test": "npm run test --workspaces --if-present"
+		"test": "lerna run test"
 	},
 	"devDependencies": {
 		"@debrixjs/eslint-config": "^0.1.0",
 		"@typescript-eslint/eslint-plugin": "^5.31.0",
 		"@typescript-eslint/parser": "^5.31.0",
-		"eslint": "^8.20.0"
+		"eslint": "^8.20.0",
+		"lerna": "^5.6.1"
 	}
 }
