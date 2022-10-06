@@ -1,4 +1,3 @@
-import { Accessor } from './binding';
 import EventEmitter from './event-emitter';
 import Modifiers from './modifiers';
 import Scheduler, { Task } from './scheduler';
@@ -20,8 +19,6 @@ function isEqualLink(x: Link, y: Link): boolean {
 interface Observable {
 	observe(listener: SubscriptionListener): Subscription;
 }
-
-export type Referenced<T> = T extends object ? { [K in keyof T]: Referenced<T[K]> } : Accessor<T>;
 
 export interface Reference<T = unknown> extends Observable {
 	get(): T
