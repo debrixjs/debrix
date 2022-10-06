@@ -8,8 +8,8 @@
 		"node",
 		"wasm"
 	],
-	"homepage": "https://github.com/debrixjs/compiler/tree/main/packages/compiler#readme",
-	"repository": "https://github.com/debrixjs/compiler",
+	"homepage": "https://github.com/debrixjs/debrix/tree/main/packages/debrix-compiler#readme",
+	"repository": "https://github.com/debrixjs/debrix",
 	"license": "MIT",
 	"author": "Elias Skogevall",
 	"exports": {

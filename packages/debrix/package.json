@@ -2,6 +2,13 @@
 	"name": "debrix",
 	"version": "0.1.0-alpha.1",
 	"description": "Efficient progressive component-based Javascript library",
+	"keywords": [
+		"ui",
+		"mvvm"
+	],
+	"homepage": "https://github.com/debrixjs/debrix/tree/main/packages/debrix#readme",
+	"repository": "https://github.com/debrixjs/debrix",
+	"license": "MIT",
 	"author": "Elias Skogevall",
 	"main": "./index.js",
 	"module": "./index.mjs",

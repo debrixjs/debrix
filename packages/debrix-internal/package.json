@@ -2,8 +2,8 @@
 	"name": "@debrix/internal",
 	"version": "0.1.0-alpha.1",
 	"description": "Shared internal runtime utilities for generated components.",
-	"homepage": "https://github.com/debrixjs/compiler/tree/main/packages/internal#readme",
-	"repository": "https://github.com/debrixjs/compiler",
+	"homepage": "https://github.com/debrixjs/debrix/tree/main/packages/debrix-internal#readme",
+	"repository": "https://github.com/debrixjs/debrix",
 	"license": "MIT",
 	"author": "Elias Skogevall",
 	"exports": {
