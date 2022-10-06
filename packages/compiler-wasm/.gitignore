@@ -1,5 +1,0 @@
-lib/wasm/
-target/
-node_modules/
-index.js
-index.d.ts

@@ -25,8 +25,5 @@
 		"rollup": "2.x",
 		"rollup-plugin-typescript2": "0.x",
 		"typescript": "4.x"
-	},
-	"peerDependencies": {
-		"@debrixjs/debrix": ">=0.1.0-0"
 	}
 }
