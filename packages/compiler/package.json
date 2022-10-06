@@ -1,6 +1,6 @@
 {
-	"name": "@debrixjs/compiler",
-	"version": "0.1.0-1",
+	"name": "@debrix/compiler",
+	"version": "0.1.0-alpha.1",
 	"description": "JavaScript distribution of debrix's compiler.",
 	"keywords": [
 		"debrix",
@@ -42,12 +42,13 @@
 		"concurrently": "^7.4.0",
 		"esbuild": "^0.15.10",
 		"esbuild-plugin-alias": "^0.2.1",
+		"follow-redirects": "^1.15.2",
 		"rollup": "2.x",
 		"rollup-plugin-base64": "1.x",
 		"rollup-plugin-terser": "7.x"
 	},
 	"peerDependencies": {
-		"@debrixjs/internal": "*"
+		"@debrix/internal": "*"
 	},
 	"engines": {
 		"node": ">=10"

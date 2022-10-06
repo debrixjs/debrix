@@ -1,6 +1,6 @@
 {
-	"name": "@debrixjs/internal",
-	"version": "0.1.0-0",
+	"name": "@debrix/internal",
+	"version": "0.1.0-alpha.1",
 	"description": "Shared internal runtime utilities for generated components.",
 	"homepage": "https://github.com/debrixjs/compiler/tree/main/packages/internal#readme",
 	"repository": "https://github.com/debrixjs/compiler",
@@ -25,5 +25,8 @@
 		"rollup": "2.x",
 		"rollup-plugin-typescript2": "0.x",
 		"typescript": "4.x"
+	},
+	"peerDependencies": {
+		"debrix": "*"
 	}
 }

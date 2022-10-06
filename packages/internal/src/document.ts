@@ -1,4 +1,4 @@
-import type { Component } from '@debrixjs/debrix';
+import type { Component } from 'debrix';
 
 export function comment(data: string) {
 	return document.createComment(data);

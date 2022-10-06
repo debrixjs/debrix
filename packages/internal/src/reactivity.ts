@@ -1,4 +1,4 @@
-import type { Accessor, Binder, Lifecycle } from '@debrixjs/debrix';
+import type { Accessor, Binder, Lifecycle } from 'debrix';
 
 export function bind<T, N extends ChildNode>(node: N, binder: Binder<T, N>, accessor: Accessor<T>): Lifecycle {
 	const binding = binder(node, accessor);
