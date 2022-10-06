@@ -35,6 +35,7 @@ impl Chunk {
 			));
 		}
 
+		self.pos += &chunk.pos;
 		self
 	}
 }
