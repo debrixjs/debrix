@@ -7,6 +7,6 @@ export interface ComponentOptions {
 
 export declare class Component implements Lifecycle {
 	constructor(options?: ComponentOptions);
-	insert(target: ParentNode, anchor?: Node): void;
+	attach(target: ParentNode, anchor?: Node): void;
 	destroy(): void;
 }
