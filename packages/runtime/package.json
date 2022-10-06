@@ -12,18 +12,12 @@
 		"./types/"
 	],
 	"scripts": {
-		"build": "rollup -c && tsc --declaration --emitDeclarationOnly --outDir types",
-		"build:release": "rollup -c --environment RELEASE && tsc --declaration --emitDeclarationOnly --outDir types",
+		"build": "node build.mjs",
+		"build:release": "node build.mjs --production",
 		"prepublishOnly": "npm run build:release"
 	},
 	"devDependencies": {
-		"@rollup/plugin-node-resolve": "13.x",
-		"@rollup/plugin-typescript": "8.x",
-		"@typescript-eslint/eslint-plugin": "^5.31.0",
-		"@typescript-eslint/parser": "^5.31.0",
-		"eslint": "^8.20.0",
-		"rollup": "2.x",
-		"tslib": "2.x",
-		"typescript": "4.x"
+		"esbuild": "^0.15.10",
+		"typescript": "^4.8.4"
 	}
 }

@@ -17,14 +17,13 @@
 		"./types"
 	],
 	"scripts": {
-		"build": "rollup -c && tsc --declaration --emitDeclarationOnly --outDir types",
-		"build:release": "rollup -c --environment PRODUCTION && tsc --declaration --emitDeclarationOnly --outDir types",
+		"build": "node build.mjs",
+		"build:release": "node build.mjs --production",
 		"prepublishOnly": "npm run build:release"
 	},
 	"devDependencies": {
-		"rollup": "2.x",
-		"rollup-plugin-typescript2": "0.x",
-		"typescript": "4.x"
+		"esbuild": "^0.15.10",
+		"typescript": "^4.8.4"
 	},
 	"peerDependencies": {
 		"debrix": "*"

@@ -5,7 +5,7 @@
 	],
 	"scripts": {
 		"build": "npm run build --workspaces",
-		"build:release": "npm run build:release --workspaces --if-present",
+		"build:release": "npm run build:release --workspaces",
 		"lint": "eslint --ext .js,.ts packages/",
 		"test": "cargo test && npm run test --workspaces --if-present"
 	},
