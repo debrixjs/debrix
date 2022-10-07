@@ -7,7 +7,7 @@
 	],
 	"scripts": {
 		"lerna": "lerna",
-		"build": "lerna run build:release",
+		"build": "lerna run build",
 		"lint": "eslint --ext .js,.ts packages/",
 		"test": "lerna run test"
 	},

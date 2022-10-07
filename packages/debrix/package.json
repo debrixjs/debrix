@@ -20,8 +20,7 @@
 	],
 	"scripts": {
 		"build": "node build.mjs",
-		"build:release": "node build.mjs --production",
-		"prepublishOnly": "npm run build:release"
+		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {
 		"esbuild": "^0.15.10",

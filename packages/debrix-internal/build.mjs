@@ -6,7 +6,6 @@ import { writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const production = process.argv.includes('--production');
 
 /**
  * @param {string} command 
@@ -49,8 +48,7 @@ await Promise.all([
 		outfile: './index.js',
 		format: 'cjs',
 		platform: 'node',
-		bundle: true,
-		minify: production
+		bundle: true
 	}),
 
 	esbuild.build({
@@ -58,8 +56,7 @@ await Promise.all([
 		outfile: './index.mjs',
 		format: 'esm',
 		platform: 'node',
-		bundle: true,
-		minify: production
+		bundle: true
 	}),
 
 	writeFile('./index.d.ts', 'export * from \'./types\';\nexport { default } from \'./types\';\n'),

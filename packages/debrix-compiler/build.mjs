@@ -10,12 +10,10 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 
 const require = createRequire(import.meta.url);
 
-const production = process.argv.includes('--production');
 const rootdir = path.resolve();
 
 /** @type {import('esbuild').BuildOptions} */
 const sharedConfig = {
-	minify: production,
 	bundle: true,
 	external: ['dist/lib/debrix.node'],
 	plugins: [
@@ -125,7 +123,7 @@ await Promise.all([
 			'build',
 			'--package', 'dist_node',
 			'--quiet',
-			production && '--release',
+			'--release',
 			'--message-format=json-render-diagnostics'
 		].filter(isString).join(' '));
 
@@ -175,14 +173,13 @@ await Promise.all([
 			'-d', dir.toString(),
 			'-t', 'web',
 			'--no-typescript',
-			production && '--release',
+			'--release',
 			'./crates/wasm'
 		].filter(isString).join(' '));
 
 		const wasm = await readFile(path.resolve(dir, 'dist_wasm_bg.wasm'));
 		const js = await readFile(path.resolve(dir, 'dist_wasm.js'), 'utf8');
-		const bytesm = `
-function __decode(value) {
+		const bytesm = `function __decode(value) {
 	value = atob(value);
 	const bytes = new Uint8Array(value.length);
 	for (let i = 0; i < value.length; ++i)
@@ -195,7 +192,7 @@ module.exports = __decode(\`${wasm.toString('base64')}\`);
 
 		await writeFile(
 			path.resolve(rootdir, 'lib/debrix.wasm.js'),
-			production ? (await esbuild.transform(bytesm, { minify: true })).code : bytesm
+			bytesm
 		);
 
 		await rm(dir, { recursive: true, force: true });

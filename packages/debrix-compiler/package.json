@@ -40,10 +40,9 @@
 	],
 	"scripts": {
 		"build": "node build.mjs",
-		"build:release": "node build.mjs --production",
 		"test": "node test/index.mjs",
 		"_postinstall": "node install.mjs",
-		"prepublishOnly": "npm run build:release"
+		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {
 		"cargo-cp-artifact": "^0.1.6",
