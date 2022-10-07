@@ -79,6 +79,6 @@ await Promise.all([
 
 	async () => {
 		await mkdir('./binders/', { recursive: true });
-		await writeFile('./binders/index.d.ts', 'export * from \'./types/binders\';\n');
+		await writeFile('./binders/index.d.ts', 'export * from \'../types/binders\';\n');
 	},
 ].map(fn => fn()));
