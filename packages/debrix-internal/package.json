@@ -18,6 +18,7 @@
 	],
 	"scripts": {
 		"build": "node build.mjs",
+		"clean": "node clean.mjs",
 		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {
