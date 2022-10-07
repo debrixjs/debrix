@@ -24,11 +24,23 @@ fn serialize_error(error: &debrix_compiler::Error) -> js_sys::Object {
 	let serialized = js_sys::Object::new();
 
 	match error {
-		debrix_compiler::Error::ParserError(_) => {
-			js_sys::Reflect::set(&serialized, &"type".into(), &"parser".into());
+		debrix_compiler::Error::CompilerError(err) => {
+			js_sys::Reflect::set(&serialized, &"type".into(), &0_f64.into());
+			js_sys::Reflect::set(&serialized, &"message".into(), &format!("{:?}", err).into());
+			js_sys::Reflect::set(&serialized, &"start".into(), &(err.start as f64).into());
+			js_sys::Reflect::set(&serialized, &"end".into(), &(err.end as f64).into());
+			js_sys::Reflect::set(&serialized, &"_message".into(), &err.message.clone().into());
 		}
-		debrix_compiler::Error::CompilerError(_) => {
-			js_sys::Reflect::set(&serialized, &"type".into(), &"compiler".into());
+		debrix_compiler::Error::ParserError(err) => {
+			let positives = js_sys::Array::new();
+			for str in &err.positives {
+				positives.push(&str.into());
+			}
+
+			js_sys::Reflect::set(&serialized, &"type".into(), &1_f64.into());
+			js_sys::Reflect::set(&serialized, &"message".into(), &format!("{:?}", err).into());
+			js_sys::Reflect::set(&serialized, &"start".into(), &(err.position as f64).into());
+			js_sys::Reflect::set(&serialized, &"positives".into(), &positives);
 		}
 	}
 

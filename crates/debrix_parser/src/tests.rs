@@ -17,7 +17,7 @@ pub fn test_parse_empty_document() {
 #[test]
 pub fn test_parse_simple_document() {
 	parse(r#"
-		using #model from './self.model.js'
+		using model from 'self.model.js'
 
 		<p>Hello {$props.name}!</p>
 	"#);
