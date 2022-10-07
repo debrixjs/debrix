@@ -1,6 +1,6 @@
 {
 	"name": "@debrix/internal",
-	"version": "0.1.0-alpha.2",
+	"version": "0.1.0-alpha.3",
 	"description": "Shared internal runtime utilities for generated components.",
 	"homepage": "https://github.com/debrixjs/debrix/tree/main/packages/debrix-internal#readme",
 	"repository": "https://github.com/debrixjs/debrix",
