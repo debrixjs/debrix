@@ -1,6 +1,6 @@
 {
 	"name": "debrix",
-	"version": "0.1.0-alpha.3",
+	"version": "0.1.0-alpha.4",
 	"description": "Efficient progressive component-based Javascript library",
 	"keywords": [
 		"ui",
