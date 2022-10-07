@@ -5,6 +5,9 @@ use ast::NodeCollection;
 use crate::{render::RESERVED_JAVASCRIPT_KEYWORDS, *};
 
 const INTERNAL_MOD: &str = "@debrix/internal";
+const USAGE_MODEL: &str = "model";
+const USAGE_COMPONENT: &str = "component";
+const USAGE_BINDER: &str = "binder";
 
 fn serialize_string_literal(lit: &ast::StringLiteral) -> String {
 	lit.quote.to_string() + &lit.value + &lit.quote.to_string()
@@ -288,9 +291,8 @@ pub struct Renderer {
 	binding: Chunk,
 	append: Chunk,
 	idents: HashMap<String, usize>,
-	usage: HashMap<String, String>,
 	helpers: Vec<String>,
-	imports: HashMap<String, String>,
+	declarations: HashMap<String, HashMap<String, String>>,
 }
 
 // list of identifiers which cannot be used as a temporary variable
@@ -315,9 +317,8 @@ impl Renderer {
 			binding: Chunk::new(),
 			append: Chunk::new(),
 			idents: HashMap::new(),
-			usage: HashMap::new(),
 			helpers: Vec::new(),
-			imports: HashMap::new(),
+			declarations: HashMap::new(),
 		}
 	}
 
@@ -365,6 +366,38 @@ impl Renderer {
 			.write(", [")
 			.write(children)
 			.write("]);\n");
+	}
+
+	fn set_usage(
+		&mut self,
+		usage: &ast::Identifier,
+		owner: &ast::Identifier,
+		unique: &str,
+	) -> Result<(), Error> {
+		if &usage.name == USAGE_MODEL && self.declarations.contains_key(USAGE_MODEL) {
+			return Err(Error::compiler(
+				usage.start,
+				usage.end,
+				&format!("Cannot declare {} twice.", usage.name.clone()),
+			));
+		}
+
+		let declarations = self
+			.declarations
+			.entry(usage.name.clone())
+			.or_insert(HashMap::new());
+
+		if declarations.contains_key(&owner.name) {
+			return Err(Error::compiler(
+				owner.start,
+				owner.end,
+				&format!("Cannot redeclare variable '{}'.", owner.name),
+			));
+		}
+
+		declarations.insert(owner.name.clone(), unique.to_owned());
+
+		Ok(())
 	}
 
 	pub fn render(mut self, document: ast::Document) -> Result<Chunk, Error> {
@@ -448,13 +481,14 @@ impl Renderer {
 			.write("/* implements Component */\n")
 			.write("export default class Greeting {\n");
 
-		if self.usage.contains_key("model") {
-			let local = self.usage.get("model").unwrap();
+		if self.declarations.contains_key(USAGE_MODEL) {
+			let variables = self.declarations.get(USAGE_MODEL).unwrap();
+			let name = variables.keys().next().unwrap();
 
 			document
 				.write("\tconstructor({ props = {} } = {}) {\n")
 				.write("\t\tlet data = new ")
-				.write(local)
+				.write(name)
 				.write("({ props });\n")
 				.write("\t\tthis.__node = ")
 				.write(&render_ident)
@@ -505,30 +539,15 @@ impl Renderer {
 		self.head.map(node.start).write("import ");
 
 		if let Some(default) = node.default {
-			let local = default
-				.local
-				.as_ref()
-				.unwrap_or_else(|| default.usage.as_ref().unwrap());
+			let name_owner = default.local.as_ref().unwrap_or_else(|| &default.usage);
+			let unique = self.unique(&name_owner.name);
 
-			let local_name = self.unique(&local.name);
+			self.head
+				.map(default.usage.start)
+				.write(&unique)
+				.map(name_owner.end);
 
-			if let Some(usage) = &default.usage {
-				if self.usage.contains_key(&usage.name) {
-					return Err(Error::compiler(
-						usage.start,
-						usage.end,
-						&format!("{} has already been defined", usage.name),
-					));
-				}
-
-				self.usage.insert(usage.name.clone(), local_name.clone());
-			} else {
-				self.imports.insert(local.name.clone(), local_name.clone());
-			}
-
-			// `default` may start with a '#'. The imported identifier should only be mapped to the
-			// source identifier, excluding the '#'. Therefore, `default` location will not be used.
-			self.head.map(local.start).write(&local_name).map(local.end);
+			self.set_usage(&default.usage, name_owner, &unique)?;
 
 			if node.named.is_some() {
 				self.head.write(", ");
@@ -543,44 +562,26 @@ impl Renderer {
 			let mut specifiers = named.nodes.iter().peekable();
 
 			while let Some(specifier) = specifiers.next() {
-				let imported = specifier
-					.imported
+				let name_owner = specifier
+					.local
 					.as_ref()
-					.unwrap_or_else(|| &specifier.usage.as_ref().unwrap());
+					.unwrap_or_else(|| &specifier.imported);
+				let unique = self.unique(&name_owner.name);
 
 				self.head
 					.map(specifier.start)
-					.write(&imported.name)
+					.write(&specifier.imported.name)
 					.map(specifier.end);
 
-				let mut imported_local_name = &imported.name;
-
-				if let Some(local) = &specifier.local {
-					imported_local_name = &local.name;
-
+				if &specifier.imported.name != &unique {
 					self.head
 						.write(" as ")
-						.map(local.start)
-						.write(&local.name)
-						.map(local.end);
+						.map(name_owner.start)
+						.write(&unique)
+						.map(name_owner.end);
 				}
 
-				let local_name = self.unique(imported_local_name);
-
-				if let Some(usage) = &specifier.usage {
-					if self.usage.contains_key(&usage.name) {
-						return Err(Error::compiler(
-							usage.start,
-							usage.end,
-							&format!("{} has already been defined", usage.name),
-						));
-					}
-
-					self.usage.insert(usage.name.clone(), local_name);
-				} else {
-					self.imports
-						.insert(imported_local_name.clone(), local_name.clone());
-				}
+				self.set_usage(&specifier.usage, name_owner, &unique)?;
 
 				if specifiers.peek().is_some() {
 					self.head.write(", ");
@@ -619,73 +620,77 @@ impl Renderer {
 	}
 
 	fn render_element(&mut self, node: ast::Element) -> Result<String, Error> {
-		if let Some(local) = self.imports.get(&node.tag_name.name).cloned() {
-			let name = self.unique(&to_valid_ident(&node.tag_name.name));
+		let declarations = self.declarations.get(USAGE_COMPONENT);
 
-			self.decl
-				.write("let ")
-				.write(&name)
-				.write(" = ")
-				.map(node.start)
-				.write("new ")
-				.write(&local);
-
-			if node.children.len() > 0 {
-				let mut children = Vec::new();
-
-				for child in node.children {
-					children.push(self.render_child(child)?);
-				}
+		if let Some(locals) = declarations {
+			if let Some(component) = locals.get(&node.tag_name.name).cloned() {
+				let name = self.unique(&to_valid_ident(&node.tag_name.name));
 
 				self.decl
-					.write("({ children: [")
-					.write(&children.join(", "))
-					.write("] });\n")
-					.map(node.end);
-			} else {
-				self.decl.write("(").write(");\n").map(node.end);
+					.write("let ")
+					.write(&name)
+					.write(" = ")
+					.map(node.start)
+					.write("new ")
+					.write(&component);
+
+				if node.children.len() > 0 {
+					let mut children = Vec::new();
+
+					for child in node.children {
+						children.push(self.render_child(child)?);
+					}
+
+					self.decl
+						.write("({ children: [")
+						.write(&children.join(", "))
+						.write("] });\n")
+						.map(node.end);
+				} else {
+					self.decl.write("(").write(");\n").map(node.end);
+				}
+
+				self.render_attributes(&name, node.attributes)?;
+
+				if let Some(bindings) = node.bindings {
+					self.render_bindings(&name, bindings)?;
+				}
+
+				return Ok(name);
 			}
-
-			self.render_attributes(&name, node.attributes)?;
-
-			if let Some(bindings) = node.bindings {
-				self.render_bindings(&name, bindings)?;
-			}
-
-			Ok(name)
-		} else {
-			let helper = self.helper("element");
-			let name = self.unique(&to_valid_ident(&node.tag_name.name));
-
-			self.decl
-				.write("let ")
-				.write(&name)
-				.write(" = ")
-				.map(node.start)
-				.write(&helper)
-				.write("(")
-				.map(node.tag_name.start)
-				.write(&in_string(&node.tag_name.name))
-				.map(node.tag_name.end)
-				.write(");\n")
-				.map(node.end);
-
-			self.render_attributes(&name, node.attributes)?;
-
-			if let Some(bindings) = node.bindings {
-				self.render_bindings(&name, bindings)?;
-			}
-
-			let mut children = Vec::new();
-
-			for child in node.children {
-				children.push(self.render_child(child)?);
-			}
-
-			self.append(&name, &children.join(", "));
-
-			Ok(name)
 		}
+
+		let helper = self.helper("element");
+		let name = self.unique(&to_valid_ident(&node.tag_name.name));
+
+		self.decl
+			.write("let ")
+			.write(&name)
+			.write(" = ")
+			.map(node.start)
+			.write(&helper)
+			.write("(")
+			.map(node.tag_name.start)
+			.write(&in_string(&node.tag_name.name))
+			.map(node.tag_name.end)
+			.write(");\n")
+			.map(node.end);
+
+		self.render_attributes(&name, node.attributes)?;
+
+		if let Some(bindings) = node.bindings {
+			self.render_bindings(&name, bindings)?;
+		}
+
+		let mut children = Vec::new();
+
+		for child in node.children {
+			children.push(self.render_child(child)?);
+		}
+
+		self.append(&name, &children.join(", "));
+
+		Ok(name)
 	}
 
 	fn render_attributes(
@@ -746,12 +751,25 @@ impl Renderer {
 		let helper = self.helper("bind");
 
 		for binding in bindings.nodes {
+			let declarations = self.declarations.get(USAGE_BINDER);
+			let declaration = declarations.and_then(|declarations| declarations.get(&binding.name.name));
+
+			if declaration.is_none() {
+				return Err(Error::compiler(
+					binding.name.start,
+					binding.name.end,
+					&format!("Undeclared binder '{}'.", binding.name.name),
+				));
+			}
+
+			let declaration = declaration.unwrap();
+
 			self.binding
 				.write(&helper)
 				.write("(")
 				.write(parent)
 				.write(", ")
-				.write(&to_valid_ident(&binding.name.name))
+				.write(declaration)
 				.write(", this.$computed(() => ")
 				.append(&serialize_javascript(&binding.value))
 				.write("));\n");

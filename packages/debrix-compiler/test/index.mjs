@@ -4,7 +4,7 @@ import * as node from '../node/index.mjs';
 import * as wasm from '../wasm/index.mjs';
 
 const document = `
-	using #model from 'self.model.ts'
+	using model from 'self.model.ts'
 
 	<p>Hello {name}!</p>
 `;

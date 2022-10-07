@@ -17,27 +17,39 @@ impl Parser {
 		if let Some(char) = self.scanner.peek().cloned() {
 			let start = self.scanner.cursor();
 
-			if char == '#' {
-				self.scanner.next();
-				let usage = self.parse_identifier()?;
-				let end = self.scanner.cursor();
-
-				default = Some(ast::DependencyDefaultSpecifier {
-					start,
-					end,
-					local: None,
-					usage: Some(usage),
-				});
-			}
-
 			if is_identifier(&char) {
-				let local = self.parse_identifier()?;
+				let usage = self.parse_identifier()?;
+				let mut local = None;
+
+				self.skip_whitespace();
+
+				if let Some(char) = self.scanner.peek().cloned() {
+					let cursor = self.scanner.cursor();
+
+					if self.scanner.take("from") {
+						self.skip_whitespace();
+
+						if self.scanner.test("from") {
+							local = Some(ast::Identifier {
+								start: cursor,
+								end: cursor + 4,
+								name: "from".to_owned(),
+							});
+						} else {
+							self.scanner.set_cursor(cursor);
+						}
+					} else if is_identifier(&char) {
+						local = Some(self.parse_identifier()?);
+					}
+				} else {
+					self.unexpected();
+				}
 
 				default = Some(ast::DependencyDefaultSpecifier {
 					start,
 					end: self.scanner.cursor(),
-					local: Some(local),
-					usage: None,
+					local,
+					usage,
 				});
 			}
 		} else {
@@ -79,49 +91,23 @@ impl Parser {
 
 						named_end = self.scanner.cursor();
 						break;
-					} else if char == '#' {
-						let start = self.scanner.cursor();
-
-						self.scanner.next();
-						self.skip_whitespace();
-
-						let usage = self.parse_identifier()?;
-
-						named.push(ast::DependencyNamedSpecifier {
-							start,
-							end: self.scanner.cursor(),
-							imported: None,
-							local: None,
-							usage: Some(usage),
-						});
 					} else if is_identifier(&char) {
-						let imported = self.parse_identifier()?;
-						let mut usage = None;
-
+						let usage = self.parse_identifier()?;
 						self.skip_whitespace();
-						if self.scanner.take("as") {
-							if let Some(char) = self.scanner.peek() {
-								if char == &'#' {
-									if self.scanner.next().is_none() {
-										return Err(self.unexpected());
-									}
+						let imported = self.parse_identifier()?;
+						self.skip_whitespace();
+						let mut local = None;
 
-									usage = Some(self.parse_identifier()?)
-								} else if is_identifier(char) {
-									usage = Some(self.parse_identifier()?)
-								} else {
-									return Err(self.expected(&["identifier"]));
-								}
-							} else {
-								return Err(self.unexpected());
-							}
+						if self.scanner.take("as") {
+							self.skip_whitespace();
+							local = Some(self.parse_identifier()?);
 						}
 
 						named.push(ast::DependencyNamedSpecifier {
 							start,
 							end: self.scanner.cursor(),
-							imported: Some(imported),
-							local: None,
+							imported,
+							local,
 							usage,
 						});
 					} else {
@@ -166,11 +152,100 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn test_dependency_statement() {
+	fn test_dependency_statement_with_unnamed_default() {
 		let mut parser = Parser::new("using foo from \"bar\"".to_owned());
 		let statement = parser.parse_dependency_statement().unwrap();
 
-		assert_eq!(statement.default.unwrap().local.unwrap().name, "foo");
+		assert_eq!(statement.default.as_ref().unwrap().usage.name, "foo");
 		assert_eq!(statement.source.value, "bar");
+	}
+
+	#[test]
+	fn test_dependency_statement_with_named_default() {
+		let mut parser = Parser::new("using foo bar from \"baz\"".to_owned());
+		let statement = parser.parse_dependency_statement().unwrap();
+
+		assert_eq!(statement.default.as_ref().unwrap().usage.name, "foo");
+		assert_eq!(
+			statement
+				.default
+				.as_ref()
+				.unwrap()
+				.local
+				.as_ref()
+				.unwrap()
+				.name,
+			"bar"
+		);
+		assert_eq!(statement.source.value, "baz");
+	}
+
+	#[test]
+	fn test_dependency_statement_with_default_named_from() {
+		let mut parser = Parser::new("using foo from from \"bar\"".to_owned());
+		let statement = parser.parse_dependency_statement().unwrap();
+
+		assert_eq!(statement.default.as_ref().unwrap().usage.name, "foo");
+		assert_eq!(
+			statement
+				.default
+				.as_ref()
+				.unwrap()
+				.local
+				.as_ref()
+				.unwrap()
+				.name,
+			"from"
+		);
+		assert_eq!(statement.source.value, "bar");
+	}
+
+	#[test]
+	fn test_dependency_statement_with_named() {
+		let mut parser = Parser::new("using { foo bar } from \"baz\"".to_owned());
+		let statement = parser.parse_dependency_statement().unwrap();
+		let specifier = statement.named.as_ref().unwrap().nodes.get(0);
+
+		assert_eq!(specifier.as_ref().unwrap().usage.name, "foo");
+		assert_eq!(specifier.as_ref().unwrap().imported.name, "bar");
+		assert_eq!(statement.source.value, "baz");
+	}
+
+	#[test]
+	fn test_dependency_statement_with_named_alias() {
+		let mut parser = Parser::new("using { foo bar as baz } from \"qux\"".to_owned());
+		let statement = parser.parse_dependency_statement().unwrap();
+		let specifier = statement.named.as_ref().unwrap().nodes.get(0);
+
+		assert_eq!(specifier.as_ref().unwrap().usage.name, "foo");
+		assert_eq!(specifier.as_ref().unwrap().imported.name, "bar");
+		assert_eq!(
+			specifier.as_ref().unwrap().local.as_ref().unwrap().name,
+			"baz"
+		);
+		assert_eq!(statement.source.value, "qux");
+	}
+
+	#[test]
+	fn test_dependency_statement_with_named_default_and_named() {
+		let mut parser = Parser::new("using foo bar, { baz qux } from \"quux\"".to_owned());
+		let statement = parser.parse_dependency_statement().unwrap();
+		let named_specifier = statement.named.as_ref().unwrap().nodes.get(0);
+
+		assert_eq!(statement.default.as_ref().unwrap().usage.name, "foo");
+		assert_eq!(
+			statement
+				.default
+				.as_ref()
+				.unwrap()
+				.local
+				.as_ref()
+				.unwrap()
+				.name,
+			"bar"
+		);
+		assert_eq!(named_specifier.as_ref().unwrap().usage.name, "baz");
+		assert_eq!(named_specifier.as_ref().unwrap().imported.name, "qux");
+		assert_eq!(statement.source.value, "quux");
 	}
 }

@@ -20,14 +20,14 @@ pub struct DependencyDefaultSpecifier {
 	pub start: usize,
 	pub end: usize,
 	pub local: Option<Identifier>,
-	pub usage: Option<Identifier>,
+	pub usage: Identifier,
 }
 
 #[derive(Debug)]
 pub struct DependencyNamedSpecifier {
 	pub start: usize,
 	pub end: usize,
-	pub imported: Option<Identifier>,
+	pub imported: Identifier,
 	pub local: Option<Identifier>,
-	pub usage: Option<Identifier>,
+	pub usage: Identifier,
 }
