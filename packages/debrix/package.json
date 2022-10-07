@@ -1,6 +1,6 @@
 {
 	"name": "debrix",
-	"version": "0.1.0-alpha.2",
+	"version": "0.1.0-alpha.3",
 	"description": "Efficient progressive component-based Javascript library",
 	"keywords": [
 		"ui",
@@ -10,16 +10,28 @@
 	"repository": "https://github.com/debrixjs/debrix",
 	"license": "MIT",
 	"author": "Elias Skogevall",
-	"main": "./index.js",
-	"module": "./index.mjs",
-	"types": "./types/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./index.mjs",
+			"require": "./index.js",
+			"types": "./index.d.ts"
+		},
+		"./binders": {
+			"import": "./binders/index.mjs",
+			"require": "./binders/index.js",
+			"types": "./binders/index.d.ts"
+		}
+	},
 	"files": [
 		"./index.js",
 		"./index.mjs",
-		"./types/"
+		"./index.d.ts",
+		"./types/",
+		"./binders/"
 	],
 	"scripts": {
 		"build": "node build.mjs",
+		"clean": "node clean.mjs",
 		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {

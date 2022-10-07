@@ -6,6 +6,7 @@ packages/debrix-compiler/index.*
 packages/debrix-internal/types/
 packages/debrix-internal/index.*
 
+packages/debrix/binders/
 packages/debrix/types/
 packages/debrix/index.*
 

@@ -2,7 +2,7 @@
 
 import esbuild from 'esbuild';
 import { exec as _exec } from 'node:child_process';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -35,7 +35,7 @@ function isString(value) {
 }
 
 await Promise.all([
-	exec([
+	() => exec([
 		'node',
 		require.resolve('typescript/lib/tsc.js'),
 		'--declaration',
@@ -43,7 +43,7 @@ await Promise.all([
 		'--outDir types'
 	].filter(isString).join(' ')),
 
-	esbuild.build({
+	() => esbuild.build({
 		entryPoints: ['./src/index.ts'],
 		outfile: './index.js',
 		format: 'cjs',
@@ -51,7 +51,7 @@ await Promise.all([
 		bundle: true
 	}),
 
-	esbuild.build({
+	() => esbuild.build({
 		entryPoints: ['./src/index.ts'],
 		outfile: './index.mjs',
 		format: 'esm',
@@ -59,5 +59,26 @@ await Promise.all([
 		bundle: true
 	}),
 
-	writeFile('./index.d.ts', 'export * from \'./types\';\nexport { default } from \'./types\';\n'),
-]);
+	() => esbuild.build({
+		entryPoints: ['./src/index.ts'],
+		outfile: './binders/index.js',
+		format: 'cjs',
+		platform: 'node',
+		bundle: true
+	}),
+
+	() => esbuild.build({
+		entryPoints: ['./src/index.ts'],
+		outfile: './binders/index.mjs',
+		format: 'esm',
+		platform: 'node',
+		bundle: true
+	}),
+
+	() => writeFile('./index.d.ts', 'export * from \'./types\';\n'),
+
+	async () => {
+		await mkdir('./binders/', { recursive: true });
+		await writeFile('./binders/index.d.ts', 'export * from \'./types/binders\';\n');
+	},
+].map(fn => fn()));
