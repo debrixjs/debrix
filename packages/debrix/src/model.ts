@@ -1,19 +1,16 @@
-import EventEmitter from './event-emitter';
-import Modifiers from './modifier-map';
-import Scheduler, { Task } from './scheduler';
+import { createEventEmitter } from './event-emitter';
+import { createModifierMap } from './modifier-map';
+import { createScheduler } from './scheduler';
 import { type Subscription, type SubscriptionListener } from './subscription';
 
-interface Link {
-	target: object,
-	key: string | symbol,
-}
+type Link = [target: object, key: string | symbol];
 
 function createLink(target: object, key: string | symbol): Link {
-	return { target, key };
+	return [target, key];
 }
 
 function isEqualLink(x: Link, y: Link): boolean {
-	return x.target === y.target && x.key === y.key;
+	return x[0] === y[0] && x[1] === y[1];
 }
 
 interface Observable {
@@ -34,181 +31,134 @@ export interface Extender<T> {
 	notify?(value: T): boolean | Promise<boolean>
 	recompute?(): boolean | Promise<boolean>
 	compute?(value: T): T
-	initialize?(target: Computed<T>): void
+	init?(target: Computed<T>): void
 }
 
-interface ModifierMap {
-	ignore?: boolean;
-	effect?: boolean;
-	throttle?: number;
-	debounce?: number;
-	readonly?: boolean;
-	extend?: Extender<unknown>[];
-}
-
-const modifiers = new Modifiers<ModifierMap>();
-
-function assertNotModifier(target: object, key: string | symbol, modifier: keyof ModifierMap, message: string) {
-	if (modifiers.has(target, key, modifier))
-		throw new Error(message);
-}
-
-function assertNotIgnored(target: object, key: string | symbol, message = `Property ${String(key)} is ignored.`) {
-	assertNotModifier(target, key, 'ignore', message);
-}
+const modifiers = createModifierMap<{
+	/* ignore   */ i?: boolean;
+	/* effect   */ ef?: boolean;
+	/* throttle */ t?: number;
+	/* debounce */ d?: number;
+	/* readonly */ r?: boolean;
+	/* extend   */ e?: Extender<unknown>[];
+}>();
 
 export function ignore(target: object, key: string | symbol) {
-	assertNotIgnored(target, key, `Property ${String(key)} is already ignored.`);
-	modifiers.set(target, key, 'ignore', true);
+	modifiers.set(target, key, 'i', true);
 }
 
 export function effect(target: object, key: string | symbol) {
-	assertNotIgnored(target, key);
-	modifiers.set(target, key, 'effect', true);
+	modifiers.set(target, key, 'ef', true);
 }
 
 export function throttle(delay: number) {
 	return (target: object, key: string | symbol) => {
-		assertNotIgnored(target, key);
-		assertNotModifier(target, key, 'throttle', `Property ${String(key)} is already throttled.`);
-		assertNotModifier(target, key, 'debounce', `Cannot throttle property ${String(key)}. Property is already debounced.`);
-		modifiers.set(target, key, 'throttle', delay);
+		modifiers.set(target, key, 't', delay);
 	};
 }
 
 export function debounce(delay: number) {
 	return (target: object, key: string | symbol) => {
-		assertNotIgnored(target, key);
-		assertNotModifier(target, key, 'debounce', `Property ${String(key)} is already debounced.`);
-		assertNotModifier(target, key, 'throttle', `Cannot debounce property ${String(key)}. Property is already throttled.`);
-		modifiers.set(target, key, 'debounce', delay);
+		modifiers.set(target, key, 'd', delay);
 	};
 }
 
 export function readonly(target: object, key: string | symbol) {
-	assertNotModifier(target, key, 'readonly', `Property ${String(key)} is already readonly.`);
-	modifiers.set(target, key, 'readonly', true);
+	modifiers.set(target, key, 'r', true);
 }
 
 export function extend(extender: Extender<unknown>) {
 	return (target: object, key: string | symbol) => {
-		if (modifiers.has(target, key, 'extend'))
-			modifiers.get(target, key, 'extend')!.push(extender);
+		let extenders: Extender<unknown>[] | undefined;
+
+		if (extenders = modifiers.get(target, key, 'e'))
+			extenders.push(extender);
 		else
-			modifiers.set(target, key, 'extend', [extender]);
+			modifiers.set(target, key, 'e', [extender]);
 	};
 }
 
 export abstract class Model {
-	/** @internal */
-	$__events = new EventEmitter<{ set: [link: Link], get: [link: Link] }>();
+	$schedule!: (task: () => void) => void;
+	$tick!: () => void;
+	$silent!: <T>(target: T) => T;
+	$ref!: <T>(target: T) => Reference<T>;
 
 	/** @internal */
-	$__scheduler = new Scheduler();
+	$events = createEventEmitter<{ set: [link: Link], get: [link: Link] }>();
 
 	/** @internal */
-	$__observe(property: Link, listener: SubscriptionListener): Subscription {
-		return this.$__events.on('set', (link) => {
-			if (isEqualLink(property, link))
+	/* #__PURE__ */
+	$magic(callback: () => void): (listener: SubscriptionListener) => () => void {
+		const links: Link[] = [];
+		const temp = this.$events.on('get', link => links.push(link));
+		callback();
+		temp.revoke();
+
+		return (listener) => {
+			const subs = links.map(link => this.$observe(link /* satisfies Link */, listener));
+			return () => subs.forEach(sub => sub.revoke());
+		};
+	}
+
+	$observe(target: unknown, listener: () => void): Subscription {
+		return this.$events.on('set', (link) => {
+			if (isEqualLink(target as Link, link))
 				listener();
 		});
 	}
 
-	/** @internal */
-	$__observeDependencies(callback: () => void, listener: SubscriptionListener): Subscription {
-		const dependencies: Link[] = [];
-		const dependencyListener = this.$__events.on('get', (link) => dependencies.push(link));
-		callback();
-		dependencyListener.revoke();
-
-		const listeners = dependencies.map(dependency =>
-			this.$__observe(dependency, () => {
-				listener();
-			})
-		);
-
-		return {
-			revoke() {
-				for (const listener of listeners)
-					listener.revoke();
-			},
-		};
-	}
-
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	$silent<T>(target: T): T {
-		throw new Error('not implemented');
-	}
-
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	$ref<T>(target: T): Reference<T> {
-		throw new Error('not implemented');
-	}
-
-	$observe(target: unknown, listener: () => void): Subscription {
-		return this.$__observe(target as Link, listener);
-	}
-
-	/**
-	 * Creates an computed _value_ which recomputes when a dependency in the current model changes.
-	 * 
-	 * @example
-	 * ```typescript
-	 * // This will recompute when the value of `x` or `y` changes.
-	 * this.$computed(() => {
-	 * 	return this.x + this.y
-	 * })
-	 * ```
-	 */
+	/** Creates an computed _value_ which recomputes the next (animation) frame. */
 	$computed<T>(get: () => T): Computed<T> {
-		const subscriptions: SubscriptionListener[] = [];
+		const subscriptions = new Set<SubscriptionListener>();
 		let value: T;
 		let dirty = true;
-		let dispose: (() => void) | undefined;
+		let revoke: (() => void) | undefined;
 		let disposed = false;
 
 		const assertNotDisposed = () => {
 			if (disposed)
-				throw new Error('Reference has been disposed.');
+				throw new Error('computed is disposed');
+		};
+
+		const recompute = () => {
+			dirty = false;
+
+			let next!: T;
+			const observe = this.$magic(() => next = get());
+
+			if (next !== value) {
+				value = next;
+
+				revoke?.();
+
+				revoke = observe(() => {
+					dirty = true;
+
+					this.$schedule(() => {
+						for (const listener of subscriptions)
+							listener();
+					});
+				});
+			}
 		};
 
 		return {
 			get: () => {
 				assertNotDisposed();
 
-				if (dirty) {
-					const dependencies: Link[] = [];
-					const listener = this.$__events.on('get', link => dependencies.push(link));
-					const next = get();
-					listener.revoke();
-					dirty = false;
-
-					if (next !== value) {
-						value = next;
-
-						dispose?.();
-
-						const listeners = dependencies.map(dependency => this.$__observe(dependency, () => {
-							dirty = true;
-							this.$__scheduler.enqueue(() => {
-								subscriptions.forEach(listener => listener());
-							});
-						}));
-
-						dispose = () => listeners.map(l => l.revoke());
-					}
-				}
+				if (dirty)
+					recompute();
 
 				return value;
 			},
 
 			observe: (listener) => {
 				assertNotDisposed();
-
-				const index = subscriptions.push(listener) - 1;
+				subscriptions.add(listener);
 				return {
 					revoke() {
-						delete subscriptions[index];
+						subscriptions.delete(listener);
 					}
 				};
 			},
@@ -217,20 +167,16 @@ export abstract class Model {
 				assertNotDisposed();
 
 				disposed = true;
-				dispose?.();
+				revoke?.();
 			},
 		};
 	}
 
-	$schedule(task: Task): void {
-		this.$__scheduler.enqueue(task);
-	}
-
-	$tick(): void {
-		this.$__scheduler.flush();
-	}
-
 	constructor() {
+		const scheduler = createScheduler();
+		this.$schedule = scheduler.enqueue;
+		this.$tick = scheduler.flush;
+
 		const extend = <T extends object>(object: T, isRoot: boolean): T => {
 			let getRef = false;
 			let silent = false;
@@ -249,88 +195,86 @@ export abstract class Model {
 				let value: unknown;
 				let dirty = true;
 				let dispose: (() => void) | undefined;
-				let debounceTimeout: number | undefined;
-				const observers: (SubscriptionListener | undefined)[] = [];
+				let debounceHandle: number | undefined;
+				const subs = new Set<SubscriptionListener>();
 
-				const extenders = modifiers.get(target, key, 'extend') ?? [];
+				const extenders = modifiers.get(target, key, 'e') ?? [];
 
-				const get = () => {
-					if (dirty) {
-						const dependencies: Link[] = [];
-						const listener = this.$__events.on('get', link => dependencies.push(link));
-						const next: unknown = Reflect.get(target, key, receiver);
-						listener.revoke();
-						dirty = false;
+				const recompute = () => {
+					dirty = false;
 
-						if (next !== value) {
-							value = next;
+					let next!: unknown;
+					const observe = this.$magic(() => next = Reflect.get(target, key, receiver) as unknown);
+
+					if (next !== value) {
+						value = next;
+
+						for (const extender of extenders) {
+							if (extender.compute)
+								value = extender.compute(value);
+						}
+
+						dispose?.();
+
+						// eslint-disable-next-line @typescript-eslint/no-misused-promises
+						dispose = observe(async () => {
+							dirty = true;
 
 							for (const extender of extenders) {
-								if (extender.compute)
-									value = extender.compute(value);
+								if (extender.recompute && !await extender.recompute()) {
+									dirty = false;
+									return;
+								}
+
+								if (extender.notify && !await extender.notify(value))
+									return;
 							}
 
-							dispose?.();
+							const notify = () => {
+								this.$events.trigger('set', createLink(target, key));
+								for (const listener of subs)
+									listener();
+							};
 
-							// eslint-disable-next-line @typescript-eslint/no-misused-promises
-							const listeners = dependencies.map(dependency => this.$__observe(dependency, async () => {
-								dirty = true;
+							let timeout: number | undefined;
 
-								for (const extender of extenders) {
-									if (extender.recompute && !await extender.recompute()) {
-										dirty = false;
-										return;
-									}
+							if ((timeout = modifiers.get(target, key, 't')) !== undefined) {
+								setTimeout(notify, timeout);
+							} else if ((timeout = modifiers.get(target, key, 'd')) !== undefined) {
+								if (debounceHandle !== undefined)
+									clearTimeout(debounceHandle);
 
-									if (extender.notify && !await extender.notify(value))
-										return;
-								}
-
-								const notify = () => {
-									this.$__events.trigger('set', createLink(target, key));
-									for (const listener of observers)
-										listener?.();
-								};
-
-								if (modifiers.has(target, key, 'throttle')) {
-									const timeout = modifiers.get(target, key, 'throttle')!;
-
-									setTimeout(notify, timeout);
-								} else if (modifiers.has(target, key, 'debounce')) {
-									const timeout = modifiers.get(target, key, 'debounce')!;
-
-									if (debounceTimeout !== undefined)
-										clearTimeout(debounceTimeout);
-
-									debounceTimeout = setTimeout(notify, timeout);
-								} else {
-									this.$schedule(notify);
-								}
-							}));
-
-							dispose = () => listeners.map(l => l.revoke());
-						}
+								debounceHandle = setTimeout(notify, timeout);
+							} else {
+								this.$schedule(notify);
+							}
+						});
 					}
+				};
+
+				const get = () => {
+					if (dirty)
+						recompute();
 
 					return value;
 				};
 
 				const observe = (listener: SubscriptionListener): Subscription => {
-					const index = observers.push(listener) - 1;
+					subs.add(listener);
 					return {
 						revoke() {
-							observers[index] = undefined;
+							subs.delete(listener);
 						}
 					};
 				};
 
 				for (const extender of extenders) {
-					if (extender.initialize) {
-						extender.initialize({
-							get: get,
+					if (extender.init) {
+						extender.init({
+							get,
 							observe,
 							dispose() {
-								throw new Error('Cannot dispose of computed property.');
+								throw new Error('cannot dispose');
 							},
 						});
 					}
@@ -346,20 +290,20 @@ export abstract class Model {
 			return new Proxy(object, {
 				get: (target: T, key, receiver: T) => {
 					const createReference = <T>(link: Link): Reference<T> => ({
-						get: (): T => Reflect.get(link.target, link.key) as T,
-						set: (value: T): void => void Reflect.set(link.target, link.key, value),
-						observe: (listener) => this.$__observe(link, listener)
+						get: (): T => Reflect.get(...link) as T,
+						set: (value: T): void => void Reflect.set(...link, value),
+						observe: (listener) => this.$observe(link /* satisfies Link */, listener)
 					});
 
 					if (isRoot) {
-						if (key === this.$ref.name) {
+						if (key === '$ref') {
 							getRef = true;
 							return (link: Link): Reference => {
 								return createReference(link);
 							};
 						}
 
-						if (key === this.$silent.name) {
+						if (key === '$silent') {
 							silent = true;
 							return (value: unknown) => {
 								silent = false;
@@ -369,7 +313,7 @@ export abstract class Model {
 
 						if (
 							(typeof key === 'string' && key.startsWith('$'))
-							|| modifiers.get(target, key, 'ignore') === true
+							|| modifiers.get(target, key, 'i') === true
 						)
 							return Reflect.get(target, key, receiver) as unknown;
 					}
@@ -391,7 +335,7 @@ export abstract class Model {
 					const value = get();
 
 					if (!silent)
-						this.$__events.trigger('get', createLink(target, key));
+						this.$events.trigger('get', createLink(target, key));
 
 					if (typeof value === 'object' && value !== null)
 						return extend(value, false);
@@ -402,7 +346,7 @@ export abstract class Model {
 				set: (target, key, value, receiver) => {
 					const succeeded = Reflect.set(target, key, value, receiver);
 					this.$schedule(() => {
-						this.$__events.trigger('set', createLink(target, key));
+						this.$events.trigger('set', createLink(target, key));
 					});
 					return succeeded;
 				}
@@ -413,7 +357,7 @@ export abstract class Model {
 
 		for (const key in this.constructor.prototype) {
 			if (Object.prototype.hasOwnProperty.call(this.constructor.prototype, key)) {
-				if (modifiers.get(this.constructor.prototype as object, key, 'effect') === true)
+				if (modifiers.get(this.constructor.prototype as object, key, 'ef') === true)
 					Reflect.get(extended, key);
 			}
 		}

@@ -1,27 +1,32 @@
 import { Revokable } from './lifecycle';
 
-export default class EventEmitter<EventMap extends { [key in string]: unknown[] }> {
-	protected listeners = new Map<keyof EventMap, ((...args: EventMap[any]) => void)[]>();
+export interface EventEmitter<EventMap extends { [key in string]: unknown[] }> {
+	on<K extends keyof EventMap>(event: K, listener: (...args: EventMap[K]) => void): Revokable
+	trigger<K extends keyof EventMap>(event: K, ...args: EventMap[K]): void
+}
 
-	on<K extends keyof EventMap>(event: K, listener: (...args: EventMap[K]) => void): Revokable {
-		let listeners: ((...args: EventMap[any]) => void)[];
+export function createEventEmitter<EventMap extends { [key in string]: unknown[] }>(): EventEmitter<EventMap> {
+	const listeners = new Map<keyof EventMap, Set<(...args: EventMap[any]) => void>>();
 
-		if (this.listeners.has(event))
-			(listeners = this.listeners.get(event)!).push(listener) - 1;
-		else
-			this.listeners.set(event, listeners = [listener]);
+	return {
+		on(event, listener) {
+			if (!listeners.has(event))
+				listeners.set(event, new Set());
 
-		return {
-			revoke: () => {
-				listeners.splice(listeners.indexOf(listener), 1);
-			}
-		};
-	}
+			const set = listeners.get(event)!.add(listener);
 
-	trigger<K extends keyof EventMap>(event: K, ...args: EventMap[K]): void {
-		if (!this.listeners.has(event))
-			return;
+			return {
+				revoke: () => {
+					set.delete(listener);
+				}
+			};
+		},
 
-		this.listeners.get(event)!.forEach(listener => listener(...args));
-	}
+		trigger(event, ...args) {
+			if (!listeners.has(event))
+				return;
+
+			listeners.get(event)!.forEach(listener => listener(...args));
+		}
+	};
 }
