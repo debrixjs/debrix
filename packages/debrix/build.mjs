@@ -2,8 +2,9 @@
 
 import esbuild from 'esbuild';
 import { exec as _exec } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 
@@ -34,6 +35,11 @@ function isString(value) {
 	return typeof value === 'string';
 }
 
+const minify = process.argv.includes('--minify');
+
+if (minify)
+	console.log('NOTE! Production build should NOT be minified!');
+
 await Promise.all([
 	() => exec([
 		'node',
@@ -47,31 +53,38 @@ await Promise.all([
 		entryPoints: ['./src/index.ts'],
 		outfile: './index.js',
 		format: 'cjs',
-		platform: 'node',
-		bundle: true
+		platform: 'browser',
+		target: 'es2015',
+		bundle: true,
+		minify
 	}),
 
 	() => esbuild.build({
 		entryPoints: ['./src/index.ts'],
 		outfile: './index.mjs',
 		format: 'esm',
-		platform: 'node',
-		bundle: true
+		platform: 'browser',
+		target: 'es2015',
+		bundle: true,
+		minify
 	}),
 
 	() => esbuild.build({
-		entryPoints: ['./src/index.ts'],
+		entryPoints: ['./src/binders.ts'],
 		outfile: './binders/index.js',
 		format: 'cjs',
-		platform: 'node',
-		bundle: true
+		platform: 'browser',
+		target: 'es2015',
+		bundle: true,
+		minify
 	}),
 
 	() => esbuild.build({
-		entryPoints: ['./src/index.ts'],
+		entryPoints: ['./src/binders.ts'],
 		outfile: './binders/index.mjs',
 		format: 'esm',
-		platform: 'node',
+		platform: 'browser',
+		target: 'es2015',
 		bundle: true
 	}),
 

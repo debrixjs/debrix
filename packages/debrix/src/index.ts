@@ -1,4 +1,3 @@
-export * from './binders';
 export * from './binding';
 export * from './component';
 export * from './lifecycle';

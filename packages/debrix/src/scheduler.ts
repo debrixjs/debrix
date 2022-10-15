@@ -1,29 +1,38 @@
 export type Task = (...args: any) => any;
 
-export default class Scheduler {
-	protected queue = new Set<Task>();
-	protected microtask = Promise.resolve();
-	protected flushing = false;
+export interface Scheduler {
+	flush(this: void): void
+	enqueue(this: void, task: Task): void
+}
 
-	protected next(cb: () => void) {
-		void this.microtask.then(cb);
-	}
+export function createScheduler(): Scheduler {
+	const queue = new Set<Task>();
+	const microtask = Promise.resolve();
+	let flushing = false;
 
-	flush() {
-		for (const task of this.queue) {
+	const next = (cb: () => void) => {
+		void microtask.then(cb);
+	};
+
+	const flush = () => {
+		for (const task of queue) {
 			task();
-			this.queue.delete(task);
+			queue.delete(task);
 		}
-	}
+	};
 
-	enqueue(task: Task) {
-		this.queue.add(task);
+	return {
+		flush,
 
-		if (!this.flushing) {
-			this.next(() => {
-				this.flushing = false;
-				this.flush();
-			});
+		enqueue: (task: Task) => {
+			queue.add(task);
+
+			if (!flushing) {
+				next(() => {
+					flushing = false;
+					flush();
+				});
+			}
 		}
-	}
+	};
 }
