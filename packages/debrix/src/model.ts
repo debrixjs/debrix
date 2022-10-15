@@ -1,5 +1,5 @@
 import EventEmitter from './event-emitter';
-import Modifiers from './modifiers';
+import Modifiers from './modifier-map';
 import Scheduler, { Task } from './scheduler';
 import { type Subscription, type SubscriptionListener } from './subscription';
 
