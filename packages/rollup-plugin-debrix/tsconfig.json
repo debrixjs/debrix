@@ -1,0 +1,11 @@
+{
+    "include": ["./src"],
+    "compilerOptions": {
+        "module": "ESNext",
+        "target": "ESNext",
+        "moduleResolution": "Node",
+        "strict": true,
+        "skipLibCheck": true,
+        "rootDir": "./src"
+    }
+}

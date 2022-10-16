@@ -1,0 +1,44 @@
+{
+	"name": "rollup-plugin-debrix",
+	"version": "0.1.0-alpha.1",
+	"description": "Official Debrix compiler Rollup plugin",
+	"keywords": [
+		"rollup",
+		"plugin",
+		"rollup-plugin",
+		"debrix",
+		"debrixc"
+	],
+	"author": "Elias Skogevall",
+	"exports": {
+		"import": "./index.mjs",
+		"require": "./index.js",
+		"types": "./index.d.ts"
+	},
+	"files": [
+		"./types/",
+		"./index.js",
+		"./index.mjs",
+		"./index.d.ts"
+	],
+	"scripts": {
+		"build": "node build.mjs",
+		"lint": "eslint . --ext .ts,.js",
+		"prepublishOnly": "npm run build && npm run lint"
+	},
+	"dependencies": {
+		"@rollup/pluginutils": "^4.2.1",
+		"sourcemap-codec": "^1.4.8"
+	},
+	"devDependencies": {
+		"@debrixjs/eslint-config": "^0.1.0",
+		"@typescript-eslint/eslint-plugin": "^5.31.0",
+		"@typescript-eslint/parser": "^5.31.0",
+		"esbuild": "^0.15.10",
+		"eslint": "^8.20.0"
+	},
+	"peerDependencies": {
+		"rollup": "2.x",
+		"@debrix/compiler": "*"
+	}
+}
