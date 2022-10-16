@@ -10,3 +10,5 @@ packages/debrix/binders/
 packages/debrix/types/
 packages/debrix/index.*
 
+packages/rollup-plugin-debrix/types/
+packages/rollup-plugin-debrix/index.*

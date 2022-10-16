@@ -23,8 +23,7 @@
 	],
 	"scripts": {
 		"build": "node build.mjs",
-		"lint": "eslint . --ext .ts,.js",
-		"prepublishOnly": "npm run build && npm run lint"
+		"prepublishOnly": "npm run build"
 	},
 	"dependencies": {
 		"@rollup/pluginutils": "^4.2.1",

@@ -1,0 +1,25 @@
+{
+	"name": "vite-plugin-debrix",
+	"version": "0.1.0-alpha.1",
+	"description": "Offical debrix vite plugin.",
+	"keywords": [
+		"vite",
+		"plugin",
+		"vite-plugin",
+		"debrix"
+	],
+	"homepage": "https://github.com/debrixjs/debrix/tree/main/packages/vite-plugin-debrix#readme",
+	"repository": "https://github.com/debrixjs/debrix",
+	"license": "MIT",
+	"author": "Elias Skogevall",
+	"type": "module",
+	"main": "./index.js",
+	"types": "./index.d.ts",
+	"files": [
+		"./index.js",
+		"./index.d.ts"
+	],
+	"peerDependencies": {
+		"rollup-plugin-debrix": "*"
+	}
+}
