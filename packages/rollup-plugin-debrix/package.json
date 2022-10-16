@@ -1,6 +1,6 @@
 {
 	"name": "rollup-plugin-debrix",
-	"version": "0.1.0-alpha.1",
+	"version": "0.1.0-alpha.2",
 	"description": "Official Debrix compiler Rollup plugin",
 	"keywords": [
 		"rollup",
@@ -37,7 +37,7 @@
 		"eslint": "^8.20.0"
 	},
 	"peerDependencies": {
-		"rollup": "2.x",
-		"@debrix/compiler": "*"
+		"@debrix/compiler": "*",
+		"rollup": "2.x"
 	}
 }
