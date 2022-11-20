@@ -6,6 +6,7 @@ module.exports = {
 	env: {
 		es2021: true,
 		node: true,
+		browser: true,
 	},
 	parserOptions: {
 		project: './packages/*/tsconfig.json'
