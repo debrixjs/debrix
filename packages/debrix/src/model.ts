@@ -1,341 +1,246 @@
-import { createEventEmitter } from './event-emitter';
-import { createModifierMap } from './modifier-map';
-import { createScheduler } from './scheduler';
-import { type Subscription, type SubscriptionListener } from './subscription';
+import { createMicroTicker, createScheduler, Scheduler, Task } from './scheduler';
+
+export type SubscriptionListener = () => void;
+
+export interface Subscription {
+	revoke(): void;
+}
 
 type Link = [target: object, key: string | symbol];
+const createLink = (target: object, key: string | symbol): Link => [target, key];
 
-function createLink(target: object, key: string | symbol): Link {
-	return [target, key];
-}
+const GET = 0, MODIFY = 1;
 
-function isEqualLink(x: Link, y: Link): boolean {
-	return x[0] === y[0] && x[1] === y[1];
-}
-
-interface Observable {
+export interface Reference<T = unknown> {
+	get(): T
+	set(value: T): void
 	observe(listener: SubscriptionListener): Subscription;
 }
 
-export interface Reference<T = unknown> extends Observable {
-	get(): T
-	set(value: T): void
+export interface ModelOptions {
+	ticker?: (callback: () => void) => void
 }
 
-export interface Computed<T = unknown> extends Observable {
-	get(): T
-	dispose(): void
+function get<K, V>(map: Map<K, V>, key: K, _default: () => unknown): V {
+	let value: V;
+	map.has(key) ? value = map.get(key)! : map.set(key, value = _default() as V);
+	return value;
 }
 
-export interface Extender<T> {
-	notify?(value: T): boolean | Promise<boolean>
-	recompute?(): boolean | Promise<boolean>
-	compute?(value: T): T
-	init?(target: Computed<T>): void
+interface Events {
+	emit(type: 0 | 1, link: Link): void
+	on(type: 0 | 1, link: Link, listener: () => void): () => void
+	on(type: 0 | 1, link: null, listener: (link: Link) => void): () => void
 }
 
-const modifiers = createModifierMap<{
-	/* ignore   */ i?: boolean;
-	/* effect   */ ef?: boolean;
-	/* throttle */ t?: number;
-	/* debounce */ d?: number;
-	/* readonly */ r?: boolean;
-	/* extend   */ e?: Extender<unknown>[];
-}>();
+function createEvents(): Events {
+	const onAll = [
+		new Set<(link: Link) => void>(),
+		new Set<(link: Link) => void>()
+	] as const;
 
-export function ignore(target: object, key: string | symbol) {
-	modifiers.set(target, key, 'i', true);
-}
+	const onLink = new Map<object, Map<string | symbol, [Set<() => void>, Set<() => void>]>>();
 
-export function effect(target: object, key: string | symbol) {
-	modifiers.set(target, key, 'ef', true);
-}
+	const getOnLink = (type: 0 | 1, link: Link) =>
+		get(get(onLink, link[0], () => new Map()), link[1], () => [new Set, new Set])[type];
 
-export function throttle(delay: number) {
-	return (target: object, key: string | symbol) => {
-		modifiers.set(target, key, 't', delay);
-	};
-}
+	return {
+		emit(type: 0 | 1, link: Link): void {
+			for (const listener of onAll[type])
+				listener(link);
 
-export function debounce(delay: number) {
-	return (target: object, key: string | symbol) => {
-		modifiers.set(target, key, 'd', delay);
-	};
-}
+			for (const listener of getOnLink(type, link))
+				listener();
+		},
 
-export function readonly(target: object, key: string | symbol) {
-	modifiers.set(target, key, 'r', true);
-}
-
-export function extend(extender: Extender<unknown>) {
-	return (target: object, key: string | symbol) => {
-		let extenders: Extender<unknown>[] | undefined;
-
-		if (extenders = modifiers.get(target, key, 'e'))
-			extenders.push(extender);
-		else
-			modifiers.set(target, key, 'e', [extender]);
+		on(type: 0 | 1, link: Link | null, listener: (link: Link) => void): () => void {
+			const target = link ? getOnLink(type, link) : onAll[type];
+			target.add(listener);
+			return () => target.delete(listener);
+		}
 	};
 }
 
 export abstract class Model {
-	$schedule!: (task: () => void) => void;
-	$tick!: () => void;
-	$silent!: <T>(target: T) => T;
-	$ref!: <T>(target: T) => Reference<T>;
+	/** @internal */
+	private $e = createEvents();
 
 	/** @internal */
-	$events = createEventEmitter<{ set: [link: Link], get: [link: Link] }>();
+	private $observe_(link: Link, listener: SubscriptionListener): () => void {
+		return this.$e.on(MODIFY, link, listener);
+	}
+
+	/** @internal */
+	private $s: Scheduler;
+
+	/** @internal */
+	private $q = new Map<object, Set<symbol | string>>();
+
+	protected $schedule(task: Task, dedup?: Link): void {
+		if (dedup) {
+			let set: Set<symbol | string> | undefined;
+
+			if (this.$q.size === 0)
+				this.$s.enqueue_(() => this.$q.clear());
+
+			if (set = this.$q.get(dedup[0])) {
+				if (set.has(dedup[1])) return;
+				else set.add(dedup[1]);
+			} else {
+				this.$q.set(dedup[0], new Set([dedup[1]]));
+			}
+		}
+
+		this.$s.enqueue_(task);
+	}
+
+	private $scheduleEmit_(type: 0 | 1, link: Link): void {
+		this.$schedule(() => this.$e.emit(type, link), link);
+	}
+
+	protected $tick(): void {
+		this.$s.flush_();
+	}
 
 	/** @internal */
 	/* #__PURE__ */
-	$magic(callback: () => void): (listener: SubscriptionListener) => () => void {
+	protected $magic(callback: () => void): (listener: SubscriptionListener) => (() => void) {
 		const links: Link[] = [];
-		const temp = this.$events.on('get', link => links.push(link));
+		const dispose = this.$e.on(GET, null, (link: Link) => links.push(link));
+
 		callback();
-		temp.revoke();
+		dispose();
 
 		return (listener) => {
-			const subs = links.map(link => this.$observe(link /* satisfies Link */, listener));
-			return () => subs.forEach(sub => sub.revoke());
+			const observers = links.map(link => this.$observe_(link satisfies Link, listener));
+			return () => {
+				for (const revoke of observers)
+					revoke();
+			};
 		};
 	}
 
-	$observe(target: unknown, listener: () => void): Subscription {
-		return this.$events.on('set', (link) => {
-			if (isEqualLink(target as Link, link))
-				listener();
-		});
-	}
-
-	/** Creates an computed _value_ which recomputes the next (animation) frame. */
-	$computed<T>(get: () => T): Computed<T> {
-		const subscriptions = new Set<SubscriptionListener>();
-		let value: T;
-		let dirty = true;
-		let revoke: (() => void) | undefined;
-		let disposed = false;
-
-		const assertNotDisposed = () => {
-			if (disposed)
-				throw new Error('computed is disposed');
-		};
-
-		const recompute = () => {
-			dirty = false;
-
-			let next!: T;
-			const observe = this.$magic(() => next = get());
-
-			if (next !== value) {
-				value = next;
-
-				revoke?.();
-
-				revoke = observe(() => {
-					dirty = true;
-
-					this.$schedule(() => {
-						for (const listener of subscriptions)
-							listener();
-					});
-				});
-			}
-		};
-
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	protected $observe(target: unknown, listener: SubscriptionListener): Subscription;
+	protected $observe(target: Link, listener: SubscriptionListener): Subscription {
 		return {
-			get: () => {
-				assertNotDisposed();
-
-				if (dirty)
-					recompute();
-
-				return value;
-			},
-
-			observe: (listener) => {
-				assertNotDisposed();
-				subscriptions.add(listener);
-				return {
-					revoke() {
-						subscriptions.delete(listener);
-					}
-				};
-			},
-
-			dispose: () => {
-				assertNotDisposed();
-
-				disposed = true;
-				revoke?.();
-			},
+			revoke: this.$observe_(target, listener)
 		};
 	}
 
-	constructor() {
-		const scheduler = createScheduler();
-		this.$schedule = scheduler.enqueue;
-		this.$tick = scheduler.flush;
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	protected $notify(target: unknown): void {
+		throw new Error('proxy was bypassed');
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	protected $ref<T>(target: T): Reference<T> {
+		throw new Error('proxy was bypassed');
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	protected $silent<T>(target: T): T {
+		throw new Error('proxy was bypassed');
+	}
+
+	constructor(options?: ModelOptions) {
+		this.$s = createScheduler(options?.ticker ?? createMicroTicker());
 
 		const extend = <T extends object>(object: T, isRoot: boolean): T => {
-			let getRef = false;
+			let returnLink = false;
 			let silent = false;
+			const _compted = new WeakMap<object, () => unknown>();
 
-			const getters = new WeakMap<object, () => unknown>();
-
-			const computed = (target: object, key: string | symbol, receiver: unknown, descriptior: PropertyDescriptor): unknown => {
+			const asComputed = (target: object, key: string | symbol, receiver: unknown, descriptior: PropertyDescriptor): unknown => {
 				// The function is accually safe to reference because the key cannot be accessed in a weakmap.
-				// eslint-disable-next-line @typescript-eslint/unbound-method
-				if (getters.has(descriptior.get!))
+				/* eslint-disable @typescript-eslint/unbound-method */
+				if (_compted.has(descriptior.get!))
+					return _compted.get(descriptior.get!)!();
 
-					// The function is accually safe to reference because the key cannot be accessed in a weakmap.
-					// eslint-disable-next-line @typescript-eslint/unbound-method
-					return getters.get(descriptior.get!)!();
 
 				let value: unknown;
+				let revoke: (() => void) | undefined;
 				let dirty = true;
-				let dispose: (() => void) | undefined;
-				let debounceHandle: number | undefined;
-				const subs = new Set<SubscriptionListener>();
-
-				const extenders = modifiers.get(target, key, 'e') ?? [];
-
-				const recompute = () => {
-					dirty = false;
-
-					let next!: unknown;
-					const observe = this.$magic(() => next = Reflect.get(target, key, receiver) as unknown);
-
-					if (next !== value) {
-						value = next;
-
-						for (const extender of extenders) {
-							if (extender.compute)
-								value = extender.compute(value);
-						}
-
-						dispose?.();
-
-						// eslint-disable-next-line @typescript-eslint/no-misused-promises
-						dispose = observe(async () => {
-							dirty = true;
-
-							for (const extender of extenders) {
-								if (extender.recompute && !await extender.recompute()) {
-									dirty = false;
-									return;
-								}
-
-								if (extender.notify && !await extender.notify(value))
-									return;
-							}
-
-							const notify = () => {
-								this.$events.trigger('set', createLink(target, key));
-								for (const listener of subs)
-									listener();
-							};
-
-							let timeout: number | undefined;
-
-							if ((timeout = modifiers.get(target, key, 't')) !== undefined) {
-								setTimeout(notify, timeout);
-							} else if ((timeout = modifiers.get(target, key, 'd')) !== undefined) {
-								if (debounceHandle !== undefined)
-									clearTimeout(debounceHandle);
-
-								debounceHandle = setTimeout(notify, timeout);
-							} else {
-								this.$schedule(notify);
-							}
-						});
-					}
-				};
 
 				const get = () => {
-					if (dirty)
-						recompute();
+					if (dirty) {
+						revoke?.();
+						dirty = false;
+	
+						let next!: unknown;
+						const observe = this.$magic(() => next = Reflect.get(target, key, receiver) as unknown);
+	
+						if (next !== value)
+							value = next;
+	
+						revoke = observe(() => {
+							dirty = true;
+							this.$scheduleEmit_(MODIFY, createLink(target, key));
+						});
+					}
 
 					return value;
 				};
 
-				const observe = (listener: SubscriptionListener): Subscription => {
-					subs.add(listener);
-					return {
-						revoke() {
-							subs.delete(listener);
-						}
-					};
-				};
-
-				for (const extender of extenders) {
-					if (extender.init) {
-						extender.init({
-							get,
-							observe,
-							dispose() {
-								throw new Error('cannot dispose');
-							},
-						});
-					}
-				}
-
-				// The function is accually safe to reference because the key cannot be accessed in a weakmap.
-				// eslint-disable-next-line @typescript-eslint/unbound-method
-				getters.set(descriptior.get!, get);
+				_compted.set(descriptior.get!, get);
+				/* eslint-enable */
 
 				return get();
 			};
 
 			return new Proxy(object, {
 				get: (target: T, key, receiver: T) => {
-					const createReference = <T>(link: Link): Reference<T> => ({
-						get: (): T => Reflect.get(...link) as T,
-						set: (value: T): void => void Reflect.set(...link, value),
-						observe: (listener) => this.$observe(link /* satisfies Link */, listener)
-					});
-
 					if (isRoot) {
-						if (key === '$ref') {
-							getRef = true;
-							return (link: Link): Reference => {
-								return createReference(link);
-							};
+						switch (key) {
+							case '$observe': {
+								returnLink = true;
+								break;
+							}
+	
+							case '$ref': {
+								returnLink = true;
+								return <T>(link: Link): Reference<T> => ({
+									get: (): T => Reflect.get(...link) as T,
+									set: (value: T): void => void Reflect.set(...link, value),
+									observe: (listener) => ({
+										revoke: this.$observe_(link /* satisfies Link */, listener)
+									})
+								});
+							}
+	
+							case '$notify': {
+								returnLink = true;
+								return (link: Link): void =>
+									this.$scheduleEmit_(MODIFY, link);
+							}
+	
+							case '$silent': {
+								silent = true;
+								return <T>(value: T): T => {
+									silent = false;
+									return value;
+								};
+							}
 						}
 
-						if (key === '$silent') {
-							silent = true;
-							return (value: unknown) => {
-								silent = false;
-								return value;
-							};
-						}
-
-						if (
-							(typeof key === 'string' && key.startsWith('$'))
-							|| modifiers.get(target, key, 'i') === true
-						)
+						if (typeof key === 'string' && key.startsWith('$'))
 							return Reflect.get(target, key, receiver) as unknown;
 					}
 
-					if (getRef) {
-						getRef = false;
-						return createLink(receiver, key);
+					if (returnLink) {
+						returnLink = false;
+						return createLink(target, key);
 					}
 
-					const get = (): unknown => {
-						const descriptior = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), key);
+					const descriptior = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), key);
 
-						if (descriptior?.get)
-							return computed(target, key, receiver, descriptior);
+					if (descriptior?.get)
+						return asComputed(target, key, receiver, descriptior);
 
-						return Reflect.get(target, key, receiver);
-					};
-
-					const value = get();
+					const value = Reflect.get(target, key, receiver);
 
 					if (!silent)
-						this.$events.trigger('get', createLink(target, key));
+						this.$e.emit(GET, createLink(target, key));
 
 					if (typeof value === 'object' && value !== null)
 						return extend(value, false);
@@ -345,23 +250,15 @@ export abstract class Model {
 
 				set: (target, key, value, receiver) => {
 					const succeeded = Reflect.set(target, key, value, receiver);
-					this.$schedule(() => {
-						this.$events.trigger('set', createLink(target, key));
-					});
+
+					if (!silent)
+						this.$scheduleEmit_(MODIFY, createLink(target, key));
+
 					return succeeded;
 				}
 			});
 		};
 
-		const extended = extend(this, true);
-
-		for (const key in this.constructor.prototype) {
-			if (Object.prototype.hasOwnProperty.call(this.constructor.prototype, key)) {
-				if (modifiers.get(this.constructor.prototype as object, key, 'ef') === true)
-					Reflect.get(extended, key);
-			}
-		}
-
-		return extended;
+		return extend(this, true);
 	}
 }

@@ -1,6 +1,6 @@
-import { Binding } from './binding';
-import { Computed, Reference } from './model';
-import { Subscription } from './subscription';
+import { Binding } from './component';
+import { Reference, Subscription } from './model';
+import { Computed } from './viewmodel';
 
 function onUpdate<T>(computed: Computed<T>, cb: (value: T) => void, initial = false): Subscription {
 	if (initial)
