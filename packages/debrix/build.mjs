@@ -40,6 +40,16 @@ const minify = process.argv.includes('--minify');
 if (minify)
 	console.log('NOTE! Production build should NOT be minified!');
 
+/** @type {Partial<esbuild.BuildOptions>} */
+const shared = {
+	platform: 'browser',
+	target: 'es2015',
+	bundle: true,
+	minify,
+	// Everything ending in '_', but not starting with '$'
+	mangleProps: /^[^$].*_$/,
+};
+
 await Promise.all([
 	() => exec([
 		'node',
@@ -50,42 +60,30 @@ await Promise.all([
 	].filter(isString).join(' ')),
 
 	() => esbuild.build({
+		...shared,
 		entryPoints: ['./src/index.ts'],
 		outfile: './index.js',
-		format: 'cjs',
-		platform: 'browser',
-		target: 'es2015',
-		bundle: true,
-		minify
+		format: 'cjs'
 	}),
 
 	() => esbuild.build({
+		...shared,
 		entryPoints: ['./src/index.ts'],
 		outfile: './index.mjs',
 		format: 'esm',
-		platform: 'browser',
-		target: 'es2015',
-		bundle: true,
-		minify
 	}),
 
 	() => esbuild.build({
+		...shared,
 		entryPoints: ['./src/binders.ts'],
 		outfile: './binders/index.js',
 		format: 'cjs',
-		platform: 'browser',
-		target: 'es2015',
-		bundle: true,
-		minify
 	}),
 
 	() => esbuild.build({
 		entryPoints: ['./src/binders.ts'],
 		outfile: './binders/index.mjs',
 		format: 'esm',
-		platform: 'browser',
-		target: 'es2015',
-		bundle: true
 	}),
 
 	() => writeFile('./index.d.ts', 'export * from \'./types\';\n'),
