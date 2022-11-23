@@ -73,6 +73,7 @@ function createEvents(): Events {
 }
 
 const ATTACH = new WeakMap<typeof Model, Set<PropertyKey>>();
+const EXTENDERS = new WeakMap<typeof Model, Map<PropertyKey, Extender>>();
 
 export function attach(target: Model, property: PropertyKey): void;
 export function attach(target: unknown, property: PropertyKey): void {
@@ -83,6 +84,26 @@ export function attach(target: unknown, property: PropertyKey): void {
 	else
 		ATTACH.set(target as typeof Model, new Set([property]));
 }
+
+export function extend(extender: Extender): (target: Model, property: PropertyKey) => void {
+	return (target: unknown, property: PropertyKey): void => {
+		let map: Map<PropertyKey, Extender> | undefined;
+
+		if (map = EXTENDERS.get(target as typeof Model)) {
+			if (map.has(property))
+				throw new Error('can only extend once');
+			else
+				map.set(property, extender);
+		} else {
+			EXTENDERS.set(target as typeof Model, new Map([[property, extender]]));
+		}
+	};
+}
+
+export function ignore(...args: [target: Model, property: PropertyKey]): void {
+	extend(() => { })(...args);
+}
+
 export abstract class Model {
 	/** @internal */
 	private declare $e;
@@ -174,6 +195,7 @@ export abstract class Model {
 		this.$s = createScheduler(this.$ticker);
 
 		const attach = ATTACH.get(Object.getPrototypeOf(this) as typeof Model);
+		const extenders = EXTENDERS.get(Object.getPrototypeOf(this) as typeof Model);
 
 		const extend = <T extends object>(object: T, isRoot: boolean): T => {
 			let returnLink = false;
@@ -195,13 +217,13 @@ export abstract class Model {
 					if (dirty) {
 						revoke?.();
 						dirty = false;
-	
+
 						let next!: unknown;
 						const observe = this.$magic(() => next = Reflect.get(target, key, receiver) as unknown);
-	
+
 						if (next !== value)
 							value = next;
-	
+
 						revoke = observe(() => {
 							dirty = true;
 							this.$scheduleEmit_(MODIFY, createLink(target, key));
@@ -225,7 +247,7 @@ export abstract class Model {
 								returnLink = true;
 								break;
 							}
-	
+
 							case '$ref': {
 								returnLink = true;
 								return <T>(link: Link): Reference<T> => ({
@@ -236,13 +258,13 @@ export abstract class Model {
 									})
 								});
 							}
-	
+
 							case '$notify': {
 								returnLink = true;
 								return (link: Link): void =>
 									this.$scheduleEmit_(MODIFY, link);
 							}
-	
+
 							case '$silent': {
 								silent = true;
 								return <T>(value: T): T => {
@@ -268,8 +290,14 @@ export abstract class Model {
 
 					const value = Reflect.get(target, key, receiver);
 
-					if (!silent)
-						this.$e.emit(GET, createLink(target, key));
+					if (!silent) {
+						let extender;
+						if (extender = extenders?.get(key)) {
+							extender(() => this.$e.emit(GET, createLink(target, key)));
+						} else {
+							this.$e.emit(GET, createLink(target, key));
+						}
+					}
 
 					if (typeof value === 'object' && value !== null)
 						return extend(value, false);
@@ -287,7 +315,15 @@ export abstract class Model {
 						const model = value as Model;
 						model.$e.pipe(this.$e);
 					}
-						this.$scheduleEmit_(MODIFY, createLink(target, key));
+
+					if (!silent) {
+						let extender;
+						if (extender = extenders?.get(key)) {
+							extender(() => this.$scheduleEmit_(MODIFY, createLink(target, key)));
+						} else {
+							this.$scheduleEmit_(MODIFY, createLink(target, key));
+						}
+					}
 
 					return succeeded;
 				},
@@ -301,7 +337,7 @@ export abstract class Model {
 
 						if (model)
 							model.$e.pipe(this.$e);
-				}
+					}
 
 					return Reflect.defineProperty(target, property, attributes);
 				},
