@@ -5,7 +5,9 @@ export interface Scheduler {
 	enqueue_(this: void, task: Task): void
 }
 
-export function createScheduler(tick: (cb: () => void) => void): Scheduler {
+export type Ticker = (callback: () => void) => void;
+
+export function createScheduler(tick: Ticker): Scheduler {
 	const queue = new Set<Task>();
 	let flushing = false;
 

@@ -1,10 +1,12 @@
-import { createMicroTicker, createScheduler, Scheduler, Task } from './scheduler';
+import { createMicroTicker, createScheduler, Scheduler, Task, Ticker } from './scheduler';
 
 export type SubscriptionListener = () => void;
 
 export interface Subscription {
 	revoke(): void;
 }
+
+export type Extender = (cb: () => void) => void;
 
 type Link = [target: object, key: string | symbol];
 const createLink = (target: object, key: string | symbol): Link => [target, key];
@@ -18,7 +20,7 @@ export interface Reference<T = unknown> {
 }
 
 export interface ModelOptions {
-	ticker?: (callback: () => void) => void
+	ticker?: Ticker
 }
 
 function get<K, V>(map: Map<K, V>, key: K, _default: () => unknown): V {
@@ -31,6 +33,7 @@ interface Events {
 	emit(type: 0 | 1, link: Link): void
 	on(type: 0 | 1, link: Link, listener: () => void): () => void
 	on(type: 0 | 1, link: null, listener: (link: Link) => void): () => void
+	pipe(to: Events): void
 }
 
 function createEvents(): Events {
@@ -38,19 +41,27 @@ function createEvents(): Events {
 		new Set<(link: Link) => void>(),
 		new Set<(link: Link) => void>()
 	] as const;
-
 	const onLink = new Map<object, Map<string | symbol, [Set<() => void>, Set<() => void>]>>();
+	const copy = new Set<Events>();
 
 	const getOnLink = (type: 0 | 1, link: Link) =>
 		get(get(onLink, link[0], () => new Map()), link[1], () => [new Set, new Set])[type];
 
 	return {
 		emit(type: 0 | 1, link: Link): void {
+			for (const events of copy)
+				// eslint-disable-next-line prefer-rest-params
+				(events.emit as (...args: unknown[]) => void)(...arguments);
+
 			for (const listener of onAll[type])
 				listener(link);
 
 			for (const listener of getOnLink(type, link))
 				listener();
+		},
+
+		pipe(to: Events) {
+			copy.add(to);
 		},
 
 		on(type: 0 | 1, link: Link | null, listener: (link: Link) => void): () => void {
@@ -61,20 +72,33 @@ function createEvents(): Events {
 	};
 }
 
+const ATTACH = new WeakMap<typeof Model, Set<PropertyKey>>();
+
+export function attach(target: Model, property: PropertyKey): void;
+export function attach(target: unknown, property: PropertyKey): void {
+	let set: Set<PropertyKey> | undefined;
+
+	if (set = ATTACH.get(target as typeof Model))
+		set.add(property);
+	else
+		ATTACH.set(target as typeof Model, new Set([property]));
+}
 export abstract class Model {
 	/** @internal */
-	private $e = createEvents();
+	private declare $e;
 
 	/** @internal */
 	private $observe_(link: Link, listener: SubscriptionListener): () => void {
 		return this.$e.on(MODIFY, link, listener);
 	}
 
-	/** @internal */
-	private $s: Scheduler;
+	protected declare $ticker: Ticker;
 
 	/** @internal */
-	private $q = new Map<object, Set<symbol | string>>();
+	private declare $s: Scheduler;
+
+	/** @internal */
+	private declare $q;
 
 	protected $schedule(task: Task, dedup?: Link): void {
 		if (dedup) {
@@ -144,7 +168,12 @@ export abstract class Model {
 	}
 
 	constructor(options?: ModelOptions) {
-		this.$s = createScheduler(options?.ticker ?? createMicroTicker());
+		this.$e = createEvents();
+		this.$q = new Map<object, Set<symbol | string>>();
+		this.$ticker = options?.ticker ?? createMicroTicker();
+		this.$s = createScheduler(this.$ticker);
+
+		const attach = ATTACH.get(Object.getPrototypeOf(this) as typeof Model);
 
 		const extend = <T extends object>(object: T, isRoot: boolean): T => {
 			let returnLink = false;
@@ -251,11 +280,31 @@ export abstract class Model {
 				set: (target, key, value, receiver) => {
 					const succeeded = Reflect.set(target, key, value, receiver);
 
-					if (!silent)
+					// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+					if (isRoot && attach?.has(key)) {
+						// This is a unsafe convertion from any to Model.
+						// However, explicitly checking if the value is a Model is too size consuming.
+						const model = value as Model;
+						model.$e.pipe(this.$e);
+					}
 						this.$scheduleEmit_(MODIFY, createLink(target, key));
 
 					return succeeded;
+				},
+
+				defineProperty: (target, property, attributes) => {
+					// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+					if (isRoot && attach?.has(property)) {
+						// This is a unsafe convertion from any to Model | undefined.
+						// However, explicitly checking if the value is a Model is too size consuming.
+						const model = (attributes.value ?? attributes.get?.()) as Model | undefined;
+
+						if (model)
+							model.$e.pipe(this.$e);
 				}
+
+					return Reflect.defineProperty(target, property, attributes);
+				},
 			});
 		};
 
