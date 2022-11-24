@@ -1,38 +1,46 @@
 export type Task = (...args: any) => any;
 
 export interface Scheduler {
-	flush(this: void): void
-	enqueue(this: void, task: Task): void
+	flush_(this: void): void
+	enqueue_(this: void, task: Task): void
 }
 
-export function createScheduler(): Scheduler {
+export type Ticker = (callback: () => void) => void;
+
+export function createScheduler(tick: Ticker): Scheduler {
 	const queue = new Set<Task>();
-	const microtask = Promise.resolve();
 	let flushing = false;
 
-	const next = (cb: () => void) => {
-		void microtask.then(cb);
-	};
-
-	const flush = () => {
-		for (const task of queue) {
+	const flush_ = () => {
+		for (const task of Array.from(queue).slice()) {
 			task();
 			queue.delete(task);
 		}
 	};
 
 	return {
-		flush,
+		tick,
+		flush_,
 
-		enqueue: (task: Task) => {
+		enqueue_: (task: Task) => {
 			queue.add(task);
 
 			if (!flushing) {
-				next(() => {
+				flushing = true;
+				tick(() => {
 					flushing = false;
-					flush();
+					flush_();
 				});
 			}
 		}
-	};
+	} as Scheduler;
+}
+
+export function createFrameTicker(): (callback: () => void) => void {
+	return (cb) => requestAnimationFrame(cb);
+}
+
+export function createMicroTicker(): (callback: () => void) => void {
+	const promise = Promise.resolve();
+	return (cb) => void promise.then(cb);
 }

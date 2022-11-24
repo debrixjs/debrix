@@ -1,4 +1,8 @@
-import type { Binder, Computed, Lifecycle } from 'debrix';
+import type { Binder, Computed } from 'debrix';
+
+interface Lifecycle {
+	destroy(): void
+}
 
 export function bind<T, N extends ChildNode>(node: N, binder: Binder<T, N>, accessor: Computed<T>): Lifecycle {
 	const binding = binder(node, accessor);
