@@ -83,6 +83,8 @@ export function attach(target: unknown, property: PropertyKey): void {
 		set.add(property);
 	else
 		ATTACH.set(target as typeof Model, new Set([property]));
+
+	ignore(target as Model, property);
 }
 
 export function extend(extender: Extender): (target: Model, property: PropertyKey) => void {
