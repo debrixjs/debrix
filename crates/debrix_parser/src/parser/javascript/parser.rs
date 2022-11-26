@@ -46,65 +46,65 @@ impl<'a> JavascriptParser<'a> {
 	}
 
 	pub fn parse_expression(&mut self) -> Result<ast::javascript::Expression, usize> {
-		let left = self.parse_expression_lazy()?;
+		let mut left = self.parse_expression_lazy()?;
 
-		if self.tokens.is_done() {
-			return Ok(left);
+		while !self.tokens.is_done() {
+			let token = self.tokens.scan()?;
+			if is_eof(&token.kind) {
+				return Err(self.tokens.cursor());
+			}
+	
+			let token_kind = token.kind.clone();
+			self.tokens.unscan();
+	
+			left = match token_kind {
+				TokenKind::Plus
+				| TokenKind::Minus
+				| TokenKind::Multiply
+				| TokenKind::Divide
+				| TokenKind::Modulo
+				| TokenKind::Exponentiate
+				| TokenKind::LeftShift
+				| TokenKind::RightShift
+				| TokenKind::UnsignedRightShift
+				| TokenKind::LessThan
+				| TokenKind::GreaterThan
+				| TokenKind::LessThanEqual
+				| TokenKind::GreaterThanEqual
+				| TokenKind::Equal
+				| TokenKind::NotEqual
+				| TokenKind::StrictEqual
+				| TokenKind::StrictNotEqual
+				| TokenKind::BitAnd
+				| TokenKind::BitOr
+				| TokenKind::BitXor
+				| TokenKind::LogicalAnd
+				| TokenKind::LogicalOr
+				| TokenKind::Instanceof
+				| TokenKind::In => self.parse_binary(left)?.into(),
+				TokenKind::Assign
+				| TokenKind::PlusAssign
+				| TokenKind::MinusAssign
+				| TokenKind::MultiplyAssign
+				| TokenKind::ExponentiateAssign
+				| TokenKind::DivideAssign
+				| TokenKind::ModuloAssign
+				| TokenKind::LeftShiftAssign
+				| TokenKind::RightShiftAssign
+				| TokenKind::UnsignedRightShiftAssign
+				| TokenKind::BitAndAssign
+				| TokenKind::BitXorAssign
+				| TokenKind::BitOrAssign => self.parse_assignment(left)?.into(),
+				TokenKind::QuestionMark => self.parse_member_or_conditional(left)?.into(),
+				TokenKind::OpenParen => self.parse_call(left)?.into(),
+				TokenKind::Dot | TokenKind::OpenBracket => self.parse_member(left)?.into(),
+				TokenKind::Template => self.parse_tagged_template(left)?.into(),
+	
+				_ => break,
+			}
 		}
-
-		let token = self.tokens.scan()?;
-		if is_eof(&token.kind) {
-			return Err(self.tokens.cursor());
-		}
-
-		let token_kind = token.kind.clone();
-		self.tokens.unscan();
-
-		Ok(match token_kind {
-			TokenKind::Plus
-			| TokenKind::Minus
-			| TokenKind::Multiply
-			| TokenKind::Divide
-			| TokenKind::Modulo
-			| TokenKind::Exponentiate
-			| TokenKind::LeftShift
-			| TokenKind::RightShift
-			| TokenKind::UnsignedRightShift
-			| TokenKind::LessThan
-			| TokenKind::GreaterThan
-			| TokenKind::LessThanEqual
-			| TokenKind::GreaterThanEqual
-			| TokenKind::Equal
-			| TokenKind::NotEqual
-			| TokenKind::StrictEqual
-			| TokenKind::StrictNotEqual
-			| TokenKind::BitAnd
-			| TokenKind::BitOr
-			| TokenKind::BitXor
-			| TokenKind::LogicalAnd
-			| TokenKind::LogicalOr
-			| TokenKind::Instanceof
-			| TokenKind::In => self.parse_binary(left)?.into(),
-			TokenKind::Assign
-			| TokenKind::PlusAssign
-			| TokenKind::MinusAssign
-			| TokenKind::MultiplyAssign
-			| TokenKind::ExponentiateAssign
-			| TokenKind::DivideAssign
-			| TokenKind::ModuloAssign
-			| TokenKind::LeftShiftAssign
-			| TokenKind::RightShiftAssign
-			| TokenKind::UnsignedRightShiftAssign
-			| TokenKind::BitAndAssign
-			| TokenKind::BitXorAssign
-			| TokenKind::BitOrAssign => self.parse_assignment(left)?.into(),
-			TokenKind::QuestionMark => self.parse_member_or_conditional(left)?.into(),
-			TokenKind::OpenParen => self.parse_call(left)?.into(),
-			TokenKind::Dot | TokenKind::OpenBracket => self.parse_member(left)?.into(),
-			TokenKind::Template => self.parse_tagged_template(left)?.into(),
-
-			_ => left,
-		})
+		
+		return Ok(left);
 	}
 
 	fn parse_identifier(&mut self) -> Result<ast::javascript::IdentifierExpression, usize> {
