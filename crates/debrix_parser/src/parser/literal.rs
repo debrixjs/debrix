@@ -39,9 +39,15 @@ impl Parser {
 mod tests {
 	use super::*;
 
+	fn new_parser(input: &str) -> Parser {
+		let mut parser = Parser::new(input.to_owned());
+		parser.set_debug(true);
+		parser
+	}
+
 	#[test]
 	fn test_parse_string() {
-		let mut parser = Parser::new("'foo'".to_owned());
+		let mut parser = new_parser("'foo'");
 		let string = parser.parse_string().unwrap();
 
 		assert_eq!(string.value, "foo");

@@ -151,10 +151,15 @@ impl Parser {
 mod tests {
 	use super::*;
 
+	fn parse(input: &str) -> ast::DependencyStatement {
+		let mut parser = Parser::new(input.to_owned());
+		parser.set_debug(true);
+		parser.parse_dependency_statement().unwrap()
+	}
+
 	#[test]
 	fn test_dependency_statement_with_unnamed_default() {
-		let mut parser = Parser::new("using foo from \"bar\"".to_owned());
-		let statement = parser.parse_dependency_statement().unwrap();
+		let statement = parse("using foo from \"bar\"");
 
 		assert_eq!(statement.default.as_ref().unwrap().usage.name, "foo");
 		assert_eq!(statement.source.value, "bar");
@@ -162,8 +167,7 @@ mod tests {
 
 	#[test]
 	fn test_dependency_statement_with_named_default() {
-		let mut parser = Parser::new("using foo bar from \"baz\"".to_owned());
-		let statement = parser.parse_dependency_statement().unwrap();
+		let statement = parse("using foo bar from \"baz\"");
 
 		assert_eq!(statement.default.as_ref().unwrap().usage.name, "foo");
 		assert_eq!(
@@ -182,8 +186,7 @@ mod tests {
 
 	#[test]
 	fn test_dependency_statement_with_default_named_from() {
-		let mut parser = Parser::new("using foo from from \"bar\"".to_owned());
-		let statement = parser.parse_dependency_statement().unwrap();
+		let statement = parse("using foo from from \"bar\"");
 
 		assert_eq!(statement.default.as_ref().unwrap().usage.name, "foo");
 		assert_eq!(
@@ -202,8 +205,7 @@ mod tests {
 
 	#[test]
 	fn test_dependency_statement_with_named() {
-		let mut parser = Parser::new("using { foo bar } from \"baz\"".to_owned());
-		let statement = parser.parse_dependency_statement().unwrap();
+		let statement = parse("using { foo bar } from \"baz\"");
 		let specifier = statement.named.as_ref().unwrap().nodes.get(0);
 
 		assert_eq!(specifier.as_ref().unwrap().usage.name, "foo");
@@ -213,8 +215,7 @@ mod tests {
 
 	#[test]
 	fn test_dependency_statement_with_named_alias() {
-		let mut parser = Parser::new("using { foo bar as baz } from \"qux\"".to_owned());
-		let statement = parser.parse_dependency_statement().unwrap();
+		let statement = parse("using { foo bar as baz } from \"qux\"");
 		let specifier = statement.named.as_ref().unwrap().nodes.get(0);
 
 		assert_eq!(specifier.as_ref().unwrap().usage.name, "foo");
@@ -228,8 +229,7 @@ mod tests {
 
 	#[test]
 	fn test_dependency_statement_with_named_default_and_named() {
-		let mut parser = Parser::new("using foo bar, { baz qux } from \"quux\"".to_owned());
-		let statement = parser.parse_dependency_statement().unwrap();
+		let statement = parse("using foo bar, { baz qux } from \"quux\"");
 		let named_specifier = statement.named.as_ref().unwrap().nodes.get(0);
 
 		assert_eq!(statement.default.as_ref().unwrap().usage.name, "foo");

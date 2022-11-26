@@ -59,9 +59,15 @@ impl Parser {
 mod tests {
 	use super::*;
 
+	fn new_parser(input: &str) -> Parser {
+		let mut parser = Parser::new(input.to_owned());
+		parser.set_debug(true);
+		parser
+	}
+
 	#[test]
 	fn test_parse_text() {
-		let mut parser = Parser::new("foo".to_owned());
+		let mut parser = new_parser("foo");
 		let text = parser.parse_text().unwrap();
 
 		assert_eq!(text.content, "foo");
@@ -69,7 +75,7 @@ mod tests {
 
 	#[test]
 	fn test_parse_text_binding() {
-		let mut parser = Parser::new("{foo}".to_owned());
+		let mut parser = new_parser("{foo}");
 		let text_binding = parser.parse_text_binding().unwrap();
 
 		match text_binding.expression {

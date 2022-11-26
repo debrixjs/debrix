@@ -46,11 +46,15 @@ impl Parser {
 mod tests {
 	use super::*;
 
+	fn parse(input: &str) -> ast::Comment {
+		let mut parser = Parser::new(input.to_owned());
+		parser.set_debug(true);
+		parser.parse_comment().unwrap()
+	}
+
 	#[test]
 	fn test_comment() {
-		let mut parser = Parser::new("<!-- hello world -->".to_owned());
-		let comment = parser.parse_comment().unwrap();
-
+		let comment = parse("<!-- hello world -->");
 		assert_eq!(comment.comment, " hello world ");
 	}
 }

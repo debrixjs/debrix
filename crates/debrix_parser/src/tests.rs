@@ -5,8 +5,17 @@
 
 use super::*;
 
-fn parse(document: &str) -> ast::Document {
-	parse_document(document.to_owned()).unwrap()
+fn parse(document: &str) -> Vec<ast::Node> {
+	let mut parser = Parser::new(document.to_owned());
+	let mut nodes = Vec::new();
+
+	parser.set_debug(true);
+
+	while let Some(node) = parser.next().unwrap() {
+		nodes.push(node);
+	}
+
+	nodes
 }
 
 #[test]
