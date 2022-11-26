@@ -644,6 +644,8 @@ impl<'a> JavascriptParser<'a> {
 						})
 				}
 
+				TokenKind::CloseParen => break,
+
 				_ => {
 					self.tokens.unscan();
 					argument = self.parse_expression()?
