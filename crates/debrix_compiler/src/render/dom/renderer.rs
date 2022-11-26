@@ -62,7 +62,7 @@ fn join_spaces(value: &str) -> String {
 			is_space = true;
 		} else {
 			is_space = false;
-		string.push(char);
+			string.push(char);
 		}
 	}
 
@@ -733,9 +733,9 @@ impl Renderer {
 						.write(parent)
 						.write(", ")
 						.write(&in_string(&binding.name.name))
-						.write(", ")
+						.write(", this.$computed(() => ")
 						.append(&serialize_javascript(&binding.value))
-						.write(");\n");
+						.write("));\n");
 				}
 			}
 		}
