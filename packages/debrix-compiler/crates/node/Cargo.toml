@@ -18,7 +18,7 @@ default-features = false
 features = ["napi-6"]
 
 [dependencies.debrix_compiler]
-path = "../../../../crates/debrix_compiler"
+path = "../debrix_compiler"
 
 [dependencies.dist_shared]
 path = "../_shared"
