@@ -60,10 +60,10 @@ fn join_spaces(value: &str) -> String {
 			}
 
 			is_space = true;
-			continue;
-		}
-
+		} else {
+			is_space = false;
 		string.push(char);
+		}
 	}
 
 	string
