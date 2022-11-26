@@ -7,12 +7,7 @@ impl Parser {
 
 		loop {
 			if let Some(char) = self.scanner.peek() {
-				if char == &'{' {
-					break;
-				}
-
-				if char == &'<' || char == &'}' || char == &'#' {
-					content = content.trim_end().to_owned();
+				if char == &'{' || char == &'<' || char == &'}' || char == &'#' {
 					break;
 				}
 
