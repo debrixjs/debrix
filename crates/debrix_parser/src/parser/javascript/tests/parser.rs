@@ -230,6 +230,42 @@ fn test_parse_member() {
 }
 
 #[test]
+fn test_parse_member_triple() {
+	match parse("foo.bar.baz") {
+		ast::Expression::Member(expr) => {
+			assert_eq!(expr.optional, false);
+			assert_eq!(expr.computed, false);
+			match *expr.object {
+				ast::Expression::Member(member) => {
+					assert_eq!(member.optional, false);
+					assert_eq!(member.computed, false);
+					match *member.object {
+						ast::Expression::Identifier(expr) => {
+							assert_eq!(expr.name, "foo");
+						}
+						_ => panic!("Expected Identifier"),
+					}
+					match *member.property {
+						ast::Expression::Identifier(expr) => {
+							assert_eq!(expr.name, "bar");
+						}
+						_ => panic!("Expected Identifier"),
+					}
+				}
+				_ => panic!("Expected Member"),
+			}
+			match *expr.property {
+				ast::Expression::Identifier(expr) => {
+					assert_eq!(expr.name, "baz");
+				}
+				_ => panic!("Expected Identifier"),
+			}
+		}
+		_ => panic!("Expected Member"),
+	}
+}
+
+#[test]
 fn test_parse_optional_member() {
 	match parse("foo?.bar") {
 		ast::Expression::Member(expr) => {
@@ -424,11 +460,10 @@ fn test_parse_object() {
 
 			match &expr.properties.get(1).unwrap() {
 				ast::ObjectProperty::Computed(expr) => {
-
 					match &*expr.key {
 						ast::Expression::Identifier(expr) => {
 							assert_eq!(expr.name, "baz");
-						},
+						}
 						_ => panic!("Expected Identifier"),
 					}
 
