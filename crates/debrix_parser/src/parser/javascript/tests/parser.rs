@@ -163,6 +163,22 @@ fn test_parse_call() {
 }
 
 #[test]
+fn test_parse_call_without_args() {
+	match parse("foo()") {
+		ast::Expression::Call(expr) => {
+			assert_eq!(expr.arguments.len(), 0);
+			match *expr.callee {
+				ast::Expression::Identifier(expr) => {
+					assert_eq!(expr.name, "foo");
+				}
+				_ => panic!("Expected IdentifierExpression"),
+			}
+		}
+		_ => panic!("Expected CallExpression"),
+	}
+}
+
+#[test]
 fn test_parse_new() {
 	match parse("new Foo(bar, baz)") {
 		ast::Expression::New(expr) => {
