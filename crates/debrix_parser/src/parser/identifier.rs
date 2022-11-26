@@ -39,11 +39,15 @@ impl Parser {
 mod tests {
 	use super::*;
 
+	fn parse(input: &str) -> ast::Identifier {
+		let mut parser = Parser::new(input.to_owned());
+		parser.set_debug(true);
+		parser.parse_identifier().unwrap()
+	}
+
 	#[test]
 	fn test_parse_identifier() {
-		let mut parser = Parser::new("abc".to_owned());
-		let ident = parser.parse_identifier().unwrap();
-
+		let ident = parse("abc");
 		assert_eq!(ident.name, "abc");
 	}
 }

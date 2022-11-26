@@ -92,27 +92,29 @@ impl Parser {
 mod tests {
 	use super::*;
 
+	fn parse(input: &str) -> ast::FlowControl {
+		let mut parser = Parser::new(input.to_owned());
+		parser.set_debug(true);
+		parser.parse_flow_control().unwrap()
+	}
+
 	#[test]
 	fn test_flow_control_when() {
-		let mut parser = Parser::new("#when foo { bar }".to_owned());
-		parser.parse_flow_control().unwrap();
+		parse("#when foo { bar }");
 	}
 
 	#[test]
 	fn test_flow_control_else() {
-		let mut parser = Parser::new("#else { bar }".to_owned());
-		parser.parse_flow_control().unwrap();
+		parse("#else { bar }");
 	}
 
 	#[test]
 	fn test_flow_control_else_when() {
-		let mut parser = Parser::new("#else when foo { bar }".to_owned());
-		parser.parse_flow_control().unwrap();
+		parse("#else when foo { bar }");
 	}
 
 	#[test]
 	fn test_flow_control_each() {
-		let mut parser = Parser::new("#each foo of bar { baz }".to_owned());
-		parser.parse_flow_control().unwrap();
+		parse("#each foo of bar { baz }");
 	}
 }
