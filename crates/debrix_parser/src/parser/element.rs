@@ -50,9 +50,7 @@ impl Parser {
 		}
 
 		if !self_closing {
-			self.skip_whitespace();
 			children = self.parse_children()?;
-			self.skip_whitespace();
 
 			let start = self.scanner.cursor();
 
@@ -248,14 +246,34 @@ impl Parser {
 mod tests {
 	use super::*;
 
+	fn parse(input: &str) -> ast::Element {
+		let mut parser = Parser::new(input.to_owned());
+		parser.set_debug(true);
+		parser.parse_element().unwrap()
+	}
+
 	#[test]
 	fn test_element() {
-		let mut parser = Parser::new("<div></div>".to_owned());
-		let element = parser.parse_element().unwrap();
+		let element = parse("<div></div>");
 
 		assert_eq!(element.tag_name.name, "div");
 		assert_eq!(element.attributes.len(), 0);
 		assert!(element.bindings.is_none());
 		assert_eq!(element.children.len(), 0);
+	}
+
+	#[test]
+	fn test_parse_inner_surrounding_spaces() {
+		let element = parse("<p> foo </p>");
+
+		assert_eq!(element.children.len(), 1);
+
+		match element.children.get(0).unwrap() {
+			ast::Node::Text(text) => {
+				assert_eq!(text.content, " foo ");
+			}
+
+			_ => panic!("expected text"),
+		}
 	}
 }
