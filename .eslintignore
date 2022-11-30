@@ -2,6 +2,7 @@ packages/debrix-compiler/lib/
 packages/debrix-compiler/node/
 packages/debrix-compiler/wasm/
 packages/debrix-compiler/index.*
+packages/debrix-compiler/types/
 
 packages/debrix-internal/types/
 packages/debrix-internal/index.*
