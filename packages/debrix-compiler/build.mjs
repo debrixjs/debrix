@@ -5,29 +5,41 @@ import os from 'node:os';
 import { exec as _exec } from 'node:child_process';
 
 import esbuild from 'esbuild';
+import { NodeResolvePlugin } from '@esbuild-plugins/node-resolve';
 import { createRequire } from 'node:module';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 
 const require = createRequire(import.meta.url);
-
 const rootdir = path.resolve();
 
-/** @type {import('esbuild').BuildOptions} */
-const sharedConfig = {
-	bundle: true,
-	external: ['dist/lib/debrix.node'],
-	plugins: [
-		{
-			name: 'library',
-			setup(build) {
-				build.onResolve({ filter: /^[./]*lib/ }, args => ({
-					path: args.path,
+/** @returns {esbuild.Plugin} */
+function external() {
+	return {
+		name: 'external',
+		setup(build) {
+			build.onResolve({ filter: /\?external$/ }, (args) => {
+				return {
+					path: args.path.slice(0, -9),
 					external: true
-				}));
-			},
+				};
+			});
 		}
-	],
-};
+	};
+}
+
+/**
+ * @returns {import('esbuild').Plugin}
+ */
+function nodeResolve(options) {
+	return NodeResolvePlugin({
+		extensions: ['.js', '.ts'],
+		onResolved: (id) => {
+			if (id.startsWith('node:'))
+				return { external: true };
+		},
+		...options,
+	});
+}
 
 /**
  * @param {unknown} value 
@@ -38,7 +50,7 @@ function isString(value) {
 }
 
 /**
- * @param {Record<string, string>} files
+ * @param {Record<string, string | Uint8Array>} files
  * @returns {import('esbuild').Plugin}
  */
 function virtual(files) {
@@ -48,16 +60,33 @@ function virtual(files) {
 			const aliases = Object.keys(files);
 			const filter = new RegExp(`^(${aliases.map(x => escapeRegExp(x)).join('|')})$`);
 
-			build.onResolve({ filter }, args => ({
-				namespace: 'virtual',
-				path: args.path
-			}));
+			build.onResolve({ filter }, args => {
+				return {
+					namespace: 'virtual',
+					path: args.path
+				};
+			});
 
-			build.onLoad({ filter, namespace: 'virtual' }, args => ({
-				contents: files[args.path]
-			}));
+			build.onLoad({ filter, namespace: 'virtual' }, args => {
+				return {
+					contents: files[args.path],
+				};
+			});
 		}
 	};
+}
+
+function extToLoader(ext) {
+	switch (ext) {
+		case '.js':
+			return 'js';
+
+		case '.ts':
+			return 'ts';
+
+		default:
+			return 'default';
+	}
 }
 
 /**
@@ -74,7 +103,10 @@ function replace({ replace, filter }) {
 				for (const [searchValue, replaceValue] of replace)
 					contents = contents.replace(searchValue, replaceValue);
 
-				return { contents };
+				return {
+					contents,
+					loader: extToLoader(path.extname(args.path))
+				};
 			});
 		}
 	};
@@ -111,6 +143,14 @@ await rm(path.resolve(rootdir, 'wasm'), { recursive: true, force: true });
 await mkdir(path.resolve(rootdir, 'wasm'), { recursive: true });
 
 await Promise.all([
+	() => exec([
+		'node',
+		require.resolve('typescript/lib/tsc.js'),
+		'--noEmit false',
+		'--declaration',
+		'--emitDeclarationOnly',
+		'--outDir types'
+	].filter(isString).join(' ')),
 	async () => {
 		await exec([
 			'node',
@@ -127,33 +167,81 @@ await Promise.all([
 			'--message-format=json-render-diagnostics'
 		].filter(isString).join(' '));
 
+		const nativeModule = path.posix.relative(
+			path.posix.resolve('node/'),
+			path.posix.resolve('lib/debrix.node')
+		);
+
 		await Promise.all([
-			await esbuild.build(
+			esbuild.build(
 				{
-					...sharedConfig,
+					bundle: true,
 					platform: 'node',
-					entryPoints: [path.resolve(rootdir, 'src/node.js')],
+					entryPoints: [path.resolve(rootdir, 'src/node_worker.ts')],
 					format: 'cjs',
-					outfile: path.resolve(rootdir, 'node/index.js'),
+					outfile: path.resolve(rootdir, 'node/worker.js'),
+					define: {
+						NATIVE_MODULE_PATH: JSON.stringify(nativeModule + '?external')
+					},
 					plugins: [
-						...sharedConfig.plugins || [],
 						replace({
 							replace: [
 								[/\/\*\s*#ESM\s*\*\/[^]+?\/\*\s*\/ESM\s*\*\//g, '']
 							],
-							filter: /\.js$/
-						})
+							filter: /\.[tj]s$/
+						}),
+						external(),
+						nodeResolve(),
 					],
 				}
 			),
 
-			await esbuild.build(
+			esbuild.build(
 				{
-					...sharedConfig,
+					bundle: true,
 					platform: 'node',
-					entryPoints: [path.resolve(rootdir, 'src/node.js')],
+					entryPoints: [path.resolve(rootdir, 'src/node_worker.ts')],
 					format: 'esm',
-					outfile: path.resolve(rootdir, 'node/index.mjs')
+					outfile: path.resolve(rootdir, 'node/worker.mjs'),
+					define: {
+						NATIVE_MODULE_PATH: JSON.stringify(nativeModule)
+					},
+					plugins: [
+						external(),
+						nodeResolve(),
+					],
+				}
+			),
+
+			esbuild.build(
+				{
+					bundle: true,
+					platform: 'node',
+					entryPoints: [path.resolve(rootdir, 'src/node.ts')],
+					format: 'cjs',
+					outfile: path.resolve(rootdir, 'node/index.js'),
+					define: {
+						WORKER_URL: '"./worker.mjs"'
+					},
+					plugins: [
+						nodeResolve(),
+					],
+				}
+			),
+
+			esbuild.build(
+				{
+					bundle: true,
+					platform: 'node',
+					entryPoints: [path.resolve(rootdir, 'src/node.ts')],
+					format: 'esm',
+					outfile: path.resolve(rootdir, 'node/index.mjs'),
+					define: {
+						WORKER_URL: '"./worker.mjs"'
+					},
+					plugins: [
+						nodeResolve()
+					],
 				}
 			),
 		]);
@@ -178,8 +266,8 @@ await Promise.all([
 		].filter(isString).join(' '));
 
 		const wasm = await readFile(path.resolve(dir, 'dist_wasm_bg.wasm'));
-		const js = await readFile(path.resolve(dir, 'dist_wasm.js'), 'utf8');
-		const bytesm = `function __decode(value) {
+		const wasmLibMod = await readFile(path.resolve(dir, 'dist_wasm.js'), 'utf8');
+		const wasmMod = `function __decode(value) {
 	value = atob(value);
 	const bytes = new Uint8Array(value.length);
 	for (let i = 0; i < value.length; ++i)
@@ -187,40 +275,73 @@ await Promise.all([
 	return bytes;
 }
 
-module.exports = __decode(\`${wasm.toString('base64')}\`);
+const __WASM_DECODED = \`${wasm.toString('base64')}\`;
+module.exports = __decode(__WASM_DECODED);
 `;
 
-		await writeFile(
-			path.resolve(rootdir, 'lib/debrix.wasm.js'),
-			bytesm
-		);
-
 		await rm(dir, { recursive: true, force: true });
+
+		const workerTextCJS = (
+			await esbuild.build(
+				{
+					bundle: true,
+					entryPoints: [path.resolve(rootdir, 'src/wasm_worker.ts')],
+					format: 'cjs',
+					write: false,
+					plugins: [
+						virtual({
+							'debrix.wasm.lib': wasmLibMod,
+							'debrix.wasm': wasmMod,
+						}),
+						nodeResolve()
+					]
+				}
+			)
+		).outputFiles[0].text;
 
 		await Promise.all([
 			await esbuild.build(
 				{
-					...sharedConfig,
-					entryPoints: [path.resolve(rootdir, 'src/wasm.js')],
+					bundle: true,
+					entryPoints: [path.resolve(rootdir, 'src/wasm.ts')],
 					format: 'cjs',
 					outfile: path.resolve(rootdir, 'wasm/index.js'),
+					define: {
+						__WORKER_TEMPLATE: JSON.stringify(workerTextCJS),
+						__IS_ESM: 'false'
+					},
 					plugins: [
-						virtual({ '__debrix.wasm.js': js }),
-						...sharedConfig.plugins || [],
-					]
+						replace({
+							replace: [
+								[/\/\*\s*#ESM\s*\*\/[^]+?\/\*\s*\/ESM\s*\*\//g, '']
+							],
+							filter: /\.[tj]s$/
+						}),
+						nodeResolve()
+					],
 				}
 			),
 
 			await esbuild.build(
 				{
-					...sharedConfig,
-					entryPoints: [path.resolve(rootdir, 'src/wasm.js')],
+					bundle: true,
+					external: ['dist/lib/debrix.node'],
+					entryPoints: [path.resolve(rootdir, 'src/wasm.ts')],
 					format: 'esm',
 					outfile: path.resolve(rootdir, 'wasm/index.mjs'),
+					define: {
+						__WORKER_TEMPLATE: JSON.stringify(workerTextCJS),
+						__IS_ESM: 'true'
+					},
 					plugins: [
-						virtual({ '__debrix.wasm.js': js }),
-						...sharedConfig.plugins || [],
-					]
+						replace({
+							replace: [
+								[/\/\*\s*#CJS\s*\*\/[^]+?\/\*\s*\/CJS\s*\*\//g, '']
+							],
+							filter: /\.[tj]s$/
+						}),
+						nodeResolve()
+					],
 				}
 			),
 		]);

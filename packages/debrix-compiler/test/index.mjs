@@ -11,18 +11,18 @@ const document = `
 
 let nodeResult, wasmResult;
 
-test('Node dist compiles document', async () => {
+await test('Node dist compiles document', async () => {
 	const { source, mappings } = nodeResult = await node.build(document);
 	assert(source.length > 0, 'source is expected to have length');
 	assert(mappings.length > 0, 'mappings is expected to have length');
 });
 
-test('WASM dist compiles document', async () => {
+await test('WASM dist compiles document', async () => {
 	const { source, mappings } = wasmResult = await wasm.build(document);
 	assert(source.length > 0, 'source is expected to have length');
 	assert(mappings.length > 0, 'mappings is expected to have length');
 });
 
-test('WASM and Node dist have the same result', () => {
+await test('WASM and Node dist have the same result', () => {
 	assert.deepEqual(nodeResult, wasmResult);
 });
