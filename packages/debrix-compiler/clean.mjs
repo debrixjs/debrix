@@ -9,4 +9,5 @@ await Promise.all([
 	rm('./lib/', { recursive: true, force: true }),
 	rm('./node/', { recursive: true, force: true }),
 	rm('./wasm/', { recursive: true, force: true }),
+	rm('./types/', { recursive: true, force: true }),
 ]);

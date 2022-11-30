@@ -46,6 +46,8 @@
 		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {
+		"@esbuild-plugins/node-resolve": "^0.1.4",
+		"@types/node": "^18.11.9",
 		"cargo-cp-artifact": "^0.1.6",
 		"esbuild": "^0.15.10",
 		"follow-redirects": "^1.15.2"

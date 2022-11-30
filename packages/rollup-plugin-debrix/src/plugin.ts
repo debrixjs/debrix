@@ -95,10 +95,10 @@ export default function debrix(options: DebrixOptions = {}): Plugin {
 			},
 		},
 
-		transform(code, id) {
+		async transform(code, id) {
 			if (!filter(id)) return;
 
-			const { source, mappings } = build(code);
+			const { source, mappings } = await build(code);
 			const mappingsEncoded = encode(toMappings(source, mappings));
 
 			return {
