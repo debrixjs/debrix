@@ -63,7 +63,7 @@ async function ensureService(): Promise<(input: string, target: Target) => Promi
 				worker.removeListener('message', listener);
 
 				if (error !== undefined) {
-					reject(_createError(error));
+					reject(error);
 				} else {
 					resolve(build!);
 				}
