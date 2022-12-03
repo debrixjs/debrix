@@ -33,17 +33,10 @@ async function ensureService(): Promise<(input: string, target: Target) => Promi
 		return _service;
 
 	if (isNodeJs()) {
-		let workerText = WORKER_TEMPLATE;
-
-		// if (isESM()) {
-		// 	workerText = 'import worker_threads from "node:worker_threads";\n' + workerText;
-		// } else {
-		workerText = 'const worker_threads = require("node:worker_threads");\npostMessage = (data) => worker_threads.parentPort.postMessage(data);\n\n' + workerText;
-		// }
-
-		// parentPort
-
-		workerText += '\nworker_threads.parentPort.on("message", LISTENER);\n';
+		const workerText = 'const worker_threads = require("node:worker_threads");\n'
+			+ 'postMessage = (data) => worker_threads.parentPort.postMessage(data);\n\n'
+			+ WORKER_TEMPLATE
+			+ '\nworker_threads.parentPort.on("message", LISTENER);\n';
 
 		const worker_threads = await importWorkerThreads();
 		const worker = new worker_threads.Worker(workerText, { eval: true });
@@ -68,11 +61,10 @@ async function ensureService(): Promise<(input: string, target: Target) => Promi
 			worker.postMessage([handle, input, target]);
 		});
 	} else {
-		const workerText = WORKER_TEMPLATE + `
-onmessage = (event) => {
-	LISTENER(event.data);
-};
-`;
+		const workerText = WORKER_TEMPLATE
+			+ 'onmessage = (event) => {\n'
+			+ '  LISTENER(event.data);\n'
+			+ '};\n';
 
 		const worker = new Worker(createWorkerURL(workerText));
 		const listeners = new Set<(ev: MessageEvent) => void>();
