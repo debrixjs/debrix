@@ -110,6 +110,11 @@ onmessage = (event) => {
 	}
 }
 
+/** Will initialize worker. Not required to be called or finished before calling build. */
+export async function initialize(): Promise<void> {
+	await ensureService();
+}
+
 export async function build(input: string, target = Target.Client): Promise<Build> {
 	_validate(input, target);
 
