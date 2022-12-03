@@ -11,7 +11,6 @@ function nextHandle() {
 	return _nextHandle++;
 }
 
-declare const __IS_ESM: boolean;
 declare const __WORKER_TEMPLATE: string;
 const WORKER_TEMPLATE = __WORKER_TEMPLATE;
 
@@ -25,10 +24,6 @@ async function importWorkerThreads() {
 
 function isNodeJs() {
 	return typeof process !== 'undefined';
-}
-
-function isESM() {
-	return __IS_ESM;
 }
 
 let _service: ((input: string, target: Target) => Promise<Build>) | undefined;
