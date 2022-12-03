@@ -308,7 +308,6 @@ module.exports = __decode(__WASM_DECODED);
 					outfile: path.resolve(rootdir, 'wasm/index.js'),
 					define: {
 						__WORKER_TEMPLATE: JSON.stringify(workerTextCJS),
-						__IS_ESM: 'false'
 					},
 					plugins: [
 						replace({
@@ -331,7 +330,6 @@ module.exports = __decode(__WASM_DECODED);
 					outfile: path.resolve(rootdir, 'wasm/index.mjs'),
 					define: {
 						__WORKER_TEMPLATE: JSON.stringify(workerTextCJS),
-						__IS_ESM: 'true'
 					},
 					plugins: [
 						replace({
