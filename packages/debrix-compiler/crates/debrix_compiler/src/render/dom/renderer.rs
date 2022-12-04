@@ -509,8 +509,8 @@ impl Renderer {
 			.write("(target, [this.__node], anchor);\n")
 			.write("\t}\n")
 			.write("\tdestroy() {\n")
-			.write("\tthis.__data && this.__data.dispose();\n")
-			.write("\tthis.__node.remove();\n")
+			.write("\t\tthis.__data && this.__data.dispose();\n")
+			.write("\t\tthis.__node.remove();\n")
 			.write("\t}\n")
 			.write("}\n");
 
