@@ -7,7 +7,7 @@ export interface Computed<T = unknown> {
 	observe(listener: SubscriptionListener): Subscription;
 }
 
-export class ViewModel extends Model {
+export abstract class ViewModel extends Model {
 	constructor(options: ModelOptions = {}) {
 		options.ticker ??= createFrameTicker();
 		super(options);
