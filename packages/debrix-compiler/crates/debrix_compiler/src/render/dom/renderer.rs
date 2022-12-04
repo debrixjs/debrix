@@ -487,12 +487,12 @@ impl Renderer {
 
 			document
 				.write("\tconstructor({ props = {} } = {}) {\n")
-				.write("\t\tlet data = new ")
+				.write("\t\tthis.__data = new ")
 				.write(name)
 				.write("({ props });\n")
 				.write("\t\tthis.__node = ")
 				.write(&render_ident)
-				.write(".apply(data);\n");
+				.write(".apply(this.__data);\n");
 		} else {
 			document
 				.write("\tconstructor() {\n")
@@ -507,6 +507,10 @@ impl Renderer {
 			.write("\t\t")
 			.write(&append_helper)
 			.write("(target, [this.__node], anchor);\n")
+			.write("\t}\n")
+			.write("\tdestroy() {\n")
+			.write("\tthis.__data && this.__data.dispose();\n")
+			.write("\tthis.__node.remove();\n")
 			.write("\t}\n")
 			.write("}\n");
 
@@ -752,7 +756,8 @@ impl Renderer {
 
 		for binding in bindings.nodes {
 			let declarations = self.declarations.get(USAGE_BINDER);
-			let declaration = declarations.and_then(|declarations| declarations.get(&binding.name.name));
+			let declaration =
+				declarations.and_then(|declarations| declarations.get(&binding.name.name));
 
 			if declaration.is_none() {
 				return Err(Error::compiler(

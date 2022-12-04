@@ -190,6 +190,8 @@ export abstract class Model {
 		throw new Error('proxy was bypassed');
 	}
 
+	abstract dispose?(): void;
+
 	constructor(options?: ModelOptions) {
 		this.$e = createEvents();
 		this.$q = new Map<object, Set<symbol | string>>();
