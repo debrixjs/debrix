@@ -6,7 +6,7 @@ pub fn set_indent(string: &str, indent: usize) -> String {
 
 	string
 		.split("\n")
-		.map(|line| indent.clone() + &line.trim())
+		.map(|line| indent.clone() + &line.trim_end())
 		.collect::<Vec<_>>()
 		.join("\n")
 }
