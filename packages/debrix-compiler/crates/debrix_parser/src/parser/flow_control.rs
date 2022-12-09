@@ -14,7 +14,7 @@ impl Parser {
 			let condition = self.parse_javascript()?;
 			self.skip_whitespace();
 			let children = self.parse_flow_control_children()?;
-			
+
 			let mut chain = Vec::new();
 			loop {
 				let cursor = self.scanner.cursor();
@@ -33,7 +33,7 @@ impl Parser {
 				end: self.scanner.cursor(),
 				condition: Box::new(condition),
 				children,
-				chain
+				chain,
 			}));
 		}
 
@@ -58,7 +58,7 @@ impl Parser {
 				end: self.scanner.cursor(),
 				iterable: Box::new(iterable),
 				iterator: Box::new(iterator),
-				children
+				children,
 			}));
 		}
 
@@ -69,7 +69,7 @@ impl Parser {
 		if !self.scanner.take("{") {
 			return Err(self.expected(&["{"]));
 		}
-		
+
 		self.skip_whitespace();
 		let children = self.parse_children()?;
 		self.skip_whitespace();
@@ -103,7 +103,7 @@ impl Parser {
 			start,
 			end: self.scanner.cursor(),
 			condition,
-			children
+			children,
 		});
 	}
 }
@@ -120,21 +120,81 @@ mod tests {
 
 	#[test]
 	fn test_flow_control_when() {
-		parse("#when foo { bar }");
+		let node = parse("#when foo { bar }");
+
+		match node {
+			ast::FlowControl::When(node) => {
+				assert!(node.children.len() == 1);
+				assert!(node.chain.len() == 0);
+
+				match *node.condition {
+					ast::javascript::Expression::Identifier(expr) => {
+						assert!(&expr.name == "foo");
+					}
+					_ => panic!("expected identifier"),
+				}
+			}
+			_ => panic!("expected when"),
+		}
 	}
 
 	#[test]
 	fn test_flow_control_else() {
-		parse("#else { bar }");
+		let node = parse("#when foo { bar } #else { baz }");
+
+		match node {
+			ast::FlowControl::When(node) => {
+				assert!(node.children.len() == 1);
+				assert!(node.chain.len() == 1);
+				assert!(node.chain.get(0).unwrap().condition.is_none());
+			}
+			_ => panic!("expected when"),
+		}
 	}
 
 	#[test]
 	fn test_flow_control_else_when() {
-		parse("#else when foo { bar }");
+		let node = parse("#when foo { bar } #else when baz { qux }");
+		match node {
+			ast::FlowControl::When(node) => {
+				assert!(node.children.len() == 1);
+				assert!(node.chain.len() == 1);
+
+				let chained = node.chain.get(0).unwrap();
+				assert!(chained.children.len() == 1);
+
+				if let Some(expr) = &chained.condition {
+					match expr {
+						ast::javascript::Expression::Identifier(expr) => {
+							assert!(&expr.name == "baz");
+						}
+						_ => panic!("expected identifier"),
+					}
+				} else {
+					panic!("expected condition");
+				}
+			}
+			_ => panic!("expected when"),
+		}
 	}
 
 	#[test]
 	fn test_flow_control_each() {
-		parse("#each foo of bar { baz }");
+		let node = parse("#each foo in bar { baz }");
+
+		match node {
+			ast::FlowControl::Each(node) => {
+				assert!(node.children.len() == 1);
+				assert!(&*node.iterator.name == "foo");
+
+				match *node.iterable {
+					ast::javascript::Expression::Identifier(expr) => {
+						assert!(&expr.name == "bar");
+					}
+					_ => panic!("expected identifier"),
+				}
+			}
+			_ => panic!("expected each"),
+		}
 	}
 }
