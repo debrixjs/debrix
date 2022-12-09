@@ -190,7 +190,7 @@ export abstract class Model {
 		throw new Error('proxy was bypassed');
 	}
 
-	abstract dispose?(): void;
+	dispose?(): void;
 
 	constructor(options?: ModelOptions) {
 		this.$e = createEvents();
