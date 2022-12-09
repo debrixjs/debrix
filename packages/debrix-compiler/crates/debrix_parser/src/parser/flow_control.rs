@@ -14,32 +14,26 @@ impl Parser {
 			let condition = self.parse_javascript()?;
 			self.skip_whitespace();
 			let children = self.parse_flow_control_children()?;
+			
+			let mut chain = Vec::new();
+			loop {
+				let cursor = self.scanner.cursor();
+				self.skip_whitespace();
+
+				if self.scanner.test("#else") {
+					chain.push(self.parse_flow_control_else()?);
+				} else {
+					self.scanner.set_cursor(cursor);
+					break;
+				}
+			}
 
 			return Ok(ast::FlowControl::When(ast::FlowControlWhen {
 				start,
 				end: self.scanner.cursor(),
 				condition: Box::new(condition),
 				children,
-			}));
-		}
-
-		if self.scanner.take("else") {
-			self.skip_whitespace();
-
-			let mut condition = None;
-			if self.scanner.take("when") {
-				self.skip_whitespace();
-				condition = Some(self.parse_javascript()?);
-			}
-
-			self.skip_whitespace();
-			let children = self.parse_flow_control_children()?;
-
-			return Ok(ast::FlowControl::Else(ast::FlowControlElse {
-				start,
-				end: self.scanner.cursor(),
-				condition,
-				children,
+				chain
 			}));
 		}
 
@@ -85,6 +79,32 @@ impl Parser {
 		}
 
 		Ok(children)
+	}
+
+	fn parse_flow_control_else(&mut self) -> Result<ast::FlowControlElse, ParserError> {
+		let start = self.scanner.cursor();
+
+		if !self.scanner.take("#else") {
+			return Err(self.expected(&["#else"]));
+		}
+
+		self.skip_whitespace();
+
+		let mut condition = None;
+		if self.scanner.take("when") {
+			self.skip_whitespace();
+			condition = Some(self.parse_javascript()?);
+		}
+
+		self.skip_whitespace();
+		let children = self.parse_flow_control_children()?;
+
+		return Ok(ast::FlowControlElse {
+			start,
+			end: self.scanner.cursor(),
+			condition,
+			children
+		});
 	}
 }
 
