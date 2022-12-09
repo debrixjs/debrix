@@ -17,14 +17,10 @@ pub(crate) fn is_eof(kind: &TokenKind) -> bool {
 
 impl Parser {
 	pub fn parse_javascript(&mut self) -> Result<ast::javascript::Expression, ParserError> {
-		let result = JavascriptParser::new(&mut self.scanner).parse_expression();
+		Ok(JavascriptParser::new(&mut self.scanner).parse_expression()?)
+	}
 
-		match result {
-			Ok(expression) => Ok(expression),
-			Err(position) => Err(ParserError {
-				position,
-				positives: Vec::new(),
-			}),
-		}
+	pub fn parse_javascript_identifier(&mut self) -> Result<ast::javascript::IdentifierExpression, ParserError> {
+		Ok(JavascriptParser::new(&mut self.scanner).parse_identifier()?)
 	}
 }

@@ -40,11 +40,11 @@ impl Parser {
 		if self.scanner.take("each") {
 			self.skip_whitespace();
 
-			let iterator = self.parse_javascript()?;
+			let iterator = self.parse_javascript_identifier()?;
 			self.skip_whitespace();
 
-			if !self.scanner.take("of") {
-				return Err(self.expected(&["of"]));
+			if !self.scanner.take("in") {
+				return Err(self.expected(&["in"]));
 			}
 
 			self.skip_whitespace();

@@ -48,3 +48,12 @@ impl fmt::Debug for ParserError {
 		Ok(())
 	}
 }
+
+impl From<usize> for ParserError {
+	fn from(position: usize) -> ParserError {
+		ParserError {
+			position,
+			positives: Vec::new(),
+		}
+	}
+}
