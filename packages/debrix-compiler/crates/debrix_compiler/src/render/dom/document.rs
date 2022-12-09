@@ -7,6 +7,7 @@ pub struct Document {
 	pub frags: Chunk,
 
 	pub unique: Unique,
+	helpers: Vec<(String, String)>,
 	helpers_map: HashMap<String, String>,
 	declaration_map: HashMap<String, HashMap<String, String>>,
 }
@@ -18,6 +19,7 @@ impl Document {
 			head: Chunk::new(),
 
 			unique: Unique::new(),
+			helpers: Vec::new(),
 			helpers_map: HashMap::new(),
 			declaration_map: HashMap::new(),
 		}
@@ -44,16 +46,16 @@ impl Document {
 
 		let render_fragment = self.render_fragment(html_nodes)?;
 
-		if self.helpers_map.len() > 0 {
-			let mut helpers = self.helpers_map.iter().peekable();
+		if self.helpers.len() > 0 {
+			let mut helpers = self.helpers.iter().peekable();
 
 			self.head.write("import { ");
 
 			while let Some(helper) = helpers.next() {
-				self.head.write(helper.0);
+				self.head.write(&helper.0);
 
 				if helper.0 != helper.1 {
-					self.head.write(" as ").write(helper.1);
+					self.head.write(" as ").write(&helper.1);
 				}
 
 				if helpers.peek().is_some() {
@@ -209,6 +211,7 @@ impl Document {
 		} else {
 			let unqiue = self.unique.ensure(name);
 			self.helpers_map.insert(name.to_owned(), unqiue.clone());
+			self.helpers.push((name.to_owned(), unqiue.clone()));
 			unqiue
 		}
 	}
