@@ -7,7 +7,7 @@ export interface ComponentOptions {
 
 export declare class Component {
 	constructor(options?: ComponentOptions);
-	attach(target: ParentNode, anchor?: Node): void;
+	insert(target: ParentNode, anchor?: Node): void;
 	destroy(): void;
 }
 

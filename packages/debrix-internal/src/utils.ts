@@ -1,3 +1,15 @@
+import { Computed } from 'debrix';
+
+export type Not<T extends boolean> = T extends true ? false : T extends false ? true : boolean;
+
+export function computedNot<T extends boolean>(computed: Computed<T>): Computed<Not<T>> {
+	return {
+		get: () => !computed.get() as Not<T>,
+		observe: computed.observe.bind(computed),
+		dispose: () => { }
+	};
+}
+
 export type NodeLike<N extends Node = Node> = N | Fragment;
 
 const FRAGMENT = Symbol();
