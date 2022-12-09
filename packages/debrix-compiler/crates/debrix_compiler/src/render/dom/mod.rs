@@ -1,8 +1,13 @@
 use super::*;
-mod renderer;
+
+mod document;
+mod fragment;
+
+pub(crate) use document::*;
+pub(crate) use fragment::*;
 
 pub fn render(document: ast::Document) -> Result<Chunk, Error> {
-	match renderer::Renderer::new().render(document) {
+	match Document::new().render(document) {
 		Ok(chunk) => Ok(chunk),
 		Err(err) => Err(err),
 	}

@@ -1,7 +1,7 @@
 use super::*;
 
 pub struct JavascriptParser<'a> {
-	tokens: TokenBuffer<'a>,
+	pub tokens: TokenBuffer<'a>,
 }
 
 impl<'a> JavascriptParser<'a> {
@@ -11,7 +11,7 @@ impl<'a> JavascriptParser<'a> {
 		}
 	}
 
-	fn parse_expression_lazy(&mut self) -> Result<ast::javascript::Expression, usize> {
+	pub fn parse_expression_lazy(&mut self) -> Result<ast::javascript::Expression, usize> {
 		let token = self.tokens.scan()?;
 		if is_eof(&token.kind) {
 			return Err(self.tokens.cursor());
@@ -107,7 +107,7 @@ impl<'a> JavascriptParser<'a> {
 		return Ok(left);
 	}
 
-	fn parse_identifier(&mut self) -> Result<ast::javascript::IdentifierExpression, usize> {
+	pub fn parse_identifier(&mut self) -> Result<ast::javascript::IdentifierExpression, usize> {
 		let token = self.tokens.scan()?;
 		let start = token.start;
 		let end = token.end;
@@ -118,7 +118,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_string(&mut self) -> Result<ast::javascript::StringLiteral, usize> {
+	pub fn parse_string(&mut self) -> Result<ast::javascript::StringLiteral, usize> {
 		let token = self.tokens.scan()?;
 		let start = token.start;
 		let end = token.end;
@@ -137,7 +137,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_number(&mut self) -> Result<ast::javascript::NumberLiteral, usize> {
+	pub fn parse_number(&mut self) -> Result<ast::javascript::NumberLiteral, usize> {
 		let token = self.tokens.scan()?;
 		let start = token.start;
 		let end = token.end;
@@ -150,7 +150,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_boolean(&mut self) -> Result<ast::javascript::BooleanLiteral, usize> {
+	pub fn parse_boolean(&mut self) -> Result<ast::javascript::BooleanLiteral, usize> {
 		let token = self.tokens.scan()?;
 		let start = token.start;
 		let end = token.end;
@@ -163,7 +163,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_null(&mut self) -> Result<ast::javascript::NullLiteral, usize> {
+	pub fn parse_null(&mut self) -> Result<ast::javascript::NullLiteral, usize> {
 		let token = self.tokens.scan()?;
 		let start = token.start;
 		let end = token.end;
@@ -174,7 +174,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_template(&mut self) -> Result<ast::javascript::TemplateLiteral, usize> {
+	pub fn parse_template(&mut self) -> Result<ast::javascript::TemplateLiteral, usize> {
 		let token = self.tokens.scan()?;
 		let start = token.start;
 		let end = token.end;
@@ -185,7 +185,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_unary(&mut self) -> Result<ast::javascript::UnaryExpression, usize> {
+	pub fn parse_unary(&mut self) -> Result<ast::javascript::UnaryExpression, usize> {
 		let operator = self.tokens.scan()?;
 		let start = operator.start;
 		let operator = match operator.kind {
@@ -218,7 +218,7 @@ impl<'a> JavascriptParser<'a> {
 		Ok(expression)
 	}
 
-	fn parse_arrow_function_or_parenthesized(
+	pub fn parse_arrow_function_or_parenthesized(
 		&mut self,
 	) -> Result<ast::javascript::Expression, usize> {
 		let mut token_count = 0;
@@ -252,7 +252,7 @@ impl<'a> JavascriptParser<'a> {
 		}
 	}
 
-	fn parse_arrow_function(&mut self) -> Result<ast::javascript::FunctionExpression, usize> {
+	pub fn parse_arrow_function(&mut self) -> Result<ast::javascript::FunctionExpression, usize> {
 		let start = self.tokens.cursor();
 		let mut parameters: Vec<ast::javascript::Expression> = Vec::new();
 
@@ -314,7 +314,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_parenthesized(&mut self) -> Result<ast::javascript::ParenthesizedExpression, usize> {
+	pub fn parse_parenthesized(&mut self) -> Result<ast::javascript::ParenthesizedExpression, usize> {
 		let start = self.tokens.cursor();
 
 		let token = self.tokens.scan()?;
@@ -336,7 +336,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_array(&mut self) -> Result<ast::javascript::ArrayExpression, usize> {
+	pub fn parse_array(&mut self) -> Result<ast::javascript::ArrayExpression, usize> {
 		let start = self.tokens.cursor();
 		let mut elements = Vec::new();
 
@@ -378,7 +378,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_object(&mut self) -> Result<ast::javascript::ObjectExpression, usize> {
+	pub fn parse_object(&mut self) -> Result<ast::javascript::ObjectExpression, usize> {
 		let start = self.tokens.cursor();
 		let mut properties = Vec::new();
 
@@ -472,7 +472,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_new(&mut self) -> Result<ast::javascript::NewExpression, usize> {
+	pub fn parse_new(&mut self) -> Result<ast::javascript::NewExpression, usize> {
 		let start = self.tokens.cursor();
 
 		let token = self.tokens.scan()?;
@@ -491,7 +491,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_binary(
+	pub fn parse_binary(
 		&mut self,
 		left: ast::javascript::Expression,
 	) -> Result<ast::javascript::BinaryExpression, usize> {
@@ -537,7 +537,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_assignment(
+	pub fn parse_assignment(
 		&mut self,
 		left: ast::javascript::Expression,
 	) -> Result<ast::javascript::AssignmentExpression, usize> {
@@ -574,7 +574,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_member_or_conditional(
+	pub fn parse_member_or_conditional(
 		&mut self,
 		left: ast::javascript::Expression,
 	) -> Result<ast::javascript::Expression, usize> {
@@ -592,7 +592,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_conditional(
+	pub fn parse_conditional(
 		&mut self,
 		left: ast::javascript::Expression,
 	) -> Result<ast::javascript::ConditionalExpression, usize> {
@@ -617,7 +617,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_call(
+	pub fn parse_call(
 		&mut self,
 		left: ast::javascript::Expression,
 	) -> Result<ast::javascript::CallExpression, usize> {
@@ -674,7 +674,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_member(
+	pub fn parse_member(
 		&mut self,
 		left: ast::javascript::Expression,
 	) -> Result<ast::javascript::MemberExpression, usize> {
@@ -733,7 +733,7 @@ impl<'a> JavascriptParser<'a> {
 		})
 	}
 
-	fn parse_tagged_template(
+	pub fn parse_tagged_template(
 		&mut self,
 		left: ast::javascript::Expression,
 	) -> Result<ast::javascript::TaggedTemplateExpression, usize> {

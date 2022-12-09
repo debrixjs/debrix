@@ -1,4 +1,4 @@
-import type { Component } from 'debrix';
+import { isFragment, NodeLike } from './utils';
 
 export function comment(data: string) {
 	return document.createComment(data);
@@ -16,15 +16,63 @@ export function space() {
 	return text(' ');
 }
 
-export function append(target: ParentNode, nodes: (ChildNode | Component)[], anchor?: ChildNode) {
+export function attr(element: Element, name: string, value?: string): void {
+	element.setAttribute(name, value ?? '');
+}
+
+/**
+ * Inserts nodes into element.
+ * 
+ * @param target The target/parent element.
+ * @param previous The node previous to the new nodes.
+ * @param nodes The nodes to be inserted.
+ */
+export function insert(
+	target: ParentNode,
+	previous: ChildNode | null,
+	...nodes: readonly NodeLike<ChildNode>[]
+) {
 	for (const node of nodes) {
-		if (node instanceof Node)
-			target.insertBefore(node, anchor ?? null);
-		else
-			node.attach(target, anchor);
+		if (isFragment(node)) {
+			node.insert(target, previous);
+		} else {
+			if (previous) {
+				previous.before(node);
+			} else {
+				target.append(node);
+			}
+		}
 	}
 }
 
-export function attr(element: Element, name: string, value?: string): void {
-	element.setAttribute(name, value ?? '');
+/**
+ * Detaches, without deleting, nodes from element.
+ * 
+ * @param target The target/parent element.
+ * @param nodes The nodes to be detached.
+ */
+export function detach(
+	target: ParentNode,
+	...nodes: readonly NodeLike<ChildNode>[]
+) {
+	if (!nodes.length)
+		return null;
+
+	for (const node of nodes) {
+		if (isFragment(node)) {
+			node.detach(target);
+		} else {
+			target.removeChild(node);
+		}
+	}
+}
+
+export function destroy(...nodes: readonly NodeLike<ChildNode>[]) {
+	for (const node of nodes) {
+		if (isFragment(node)) {
+			node.destroy();
+		} else {
+			node.remove();
+		}
+	}
 }
