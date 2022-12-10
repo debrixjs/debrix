@@ -30,8 +30,8 @@ function get<K, V>(map: Map<K, V>, key: K, _default: () => unknown): V {
 }
 
 interface Events {
-	emit(type: 0 | 1, link: Link): void
-	on(type: 0 | 1, link: Link, listener: () => void): () => void
+	emit(type: 0 | 1, ...links: readonly Link[]): void
+	on(type: 0 | 1, link: Link | readonly Link[], listener: () => void): () => void
 	on(type: 0 | 1, link: null, listener: (link: Link) => void): () => void
 	pipe(to: Events): void
 }
@@ -41,33 +41,49 @@ function createEvents(): Events {
 		new Set<(link: Link) => void>(),
 		new Set<(link: Link) => void>()
 	] as const;
-	const onLink = new Map<object, Map<string | symbol, [Set<() => void>, Set<() => void>]>>();
+	const onLink = new Map<Link[0], Map<Link[1], [Set<() => void>, Set<() => void>]>>();
 	const copy = new Set<Events>();
 
 	const getOnLink = (type: 0 | 1, link: Link) =>
 		get(get(onLink, link[0], () => new Map()), link[1], () => [new Set, new Set])[type];
 
 	return {
-		emit(type: 0 | 1, link: Link): void {
+		emit(type: 0 | 1, ...links: readonly Link[]): void {
 			for (const events of copy)
 				// eslint-disable-next-line prefer-rest-params
 				(events.emit as (...args: unknown[]) => void)(...arguments);
 
-			for (const listener of onAll[type])
-				listener(link);
-
-			for (const listener of getOnLink(type, link))
-				listener();
+			for (const link of links) {
+				for (const listener of onAll[type])
+					listener(link);
+	
+				for (const listener of getOnLink(type, link))
+					listener();
+			}
 		},
 
 		pipe(to: Events) {
 			copy.add(to);
 		},
 
-		on(type: 0 | 1, link: Link | null, listener: (link: Link) => void): () => void {
-			const target = link ? getOnLink(type, link) : onAll[type];
-			target.add(listener);
-			return () => target.delete(listener);
+		on(type: 0 | 1, link: Link | readonly Link[] | null, listener: (link: Link) => void): () => void {
+			let targets: Set<(link: Link) => void>[];
+			if (link !== null) {
+				const isArray = Array.isArray(link[link.length - 1]);
+				const asArray = isArray ? link as readonly Link[] : [link as Link];
+
+				targets = asArray.map(link => getOnLink(type, link));
+			} else {
+				targets = [onAll[type]];
+			}
+			
+			for (const target of targets)
+				target.add(listener);
+
+			return () => {
+				for (const target of targets)
+					target.delete(listener);
+			};
 		}
 	};
 }
@@ -111,7 +127,7 @@ export abstract class Model {
 	private declare $e;
 
 	/** @internal */
-	private $observe_(link: Link, listener: SubscriptionListener): () => void {
+	private $observe_(link: Link | readonly Link[], listener: SubscriptionListener): () => void {
 		return this.$e.on(MODIFY, link, listener);
 	}
 
@@ -141,8 +157,9 @@ export abstract class Model {
 		this.$s.enqueue_(task);
 	}
 
-	private $scheduleEmit_(type: 0 | 1, link: Link): void {
-		this.$schedule(() => this.$e.emit(type, link), link);
+	private $scheduleEmit_(type: 0 | 1, ...links: readonly Link[]): void {
+		for (const link of links)
+			this.$schedule(() => this.$e.emit(type, link), link);
 	}
 
 	protected $tick(): void {
@@ -169,7 +186,7 @@ export abstract class Model {
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	protected $observe(target: unknown, listener: SubscriptionListener): Subscription;
-	protected $observe(target: Link, listener: SubscriptionListener): Subscription {
+	protected $observe(target: readonly Link[], listener: SubscriptionListener): Subscription {
 		return {
 			revoke: this.$observe_(target, listener)
 		};
@@ -201,8 +218,10 @@ export abstract class Model {
 		const attach = ATTACH.get(Object.getPrototypeOf(this) as typeof Model);
 		const extenders = EXTENDERS.get(Object.getPrototypeOf(this) as typeof Model);
 
-		const extend = <T extends object>(object: T, isRoot: boolean): T => {
+		const extend = <T extends object>(object: T, chain: readonly Link[] = []): T => {
+			const isRoot = !chain.length;
 			let returnLink = false;
+			let returnChain = false;
 			let silent = false;
 			const _compted = new WeakMap<object, () => unknown>();
 
@@ -248,7 +267,7 @@ export abstract class Model {
 					if (isRoot) {
 						switch (key) {
 							case '$observe': {
-								returnLink = true;
+								returnChain = true;
 								break;
 							}
 
@@ -264,9 +283,9 @@ export abstract class Model {
 							}
 
 							case '$notify': {
-								returnLink = true;
-								return (link: Link): void =>
-									this.$scheduleEmit_(MODIFY, link);
+								returnChain = true;
+								return (chain: readonly Link[]): void =>
+									this.$scheduleEmit_(MODIFY, ...chain);
 							}
 
 							case '$silent': {
@@ -287,6 +306,11 @@ export abstract class Model {
 						return createLink(target, key);
 					}
 
+					if (returnChain) {
+						returnChain = false;
+						return [createLink(target, key), ...chain];
+					}
+
 					const descriptior = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), key);
 
 					if (descriptior?.get)
@@ -294,17 +318,11 @@ export abstract class Model {
 
 					const value = Reflect.get(target, key, receiver);
 
-					if (!silent) {
-						let extender;
-						if (extender = extenders?.get(key)) {
-							extender(() => this.$e.emit(GET, createLink(target, key)));
-						} else {
-							this.$e.emit(GET, createLink(target, key));
-						}
-					}
+					if (!silent)
+						this.$e.emit(GET, createLink(target, key), ...chain);
 
 					if (typeof value === 'object' && value !== null)
-						return extend(value, false);
+						return extend(value, [createLink(target, key), ...chain]);
 
 					return value;
 				},
@@ -321,12 +339,14 @@ export abstract class Model {
 					}
 
 					if (!silent) {
-						let extender;
-						if (extender = extenders?.get(key)) {
-							extender(() => this.$scheduleEmit_(MODIFY, createLink(target, key)));
-						} else {
-							this.$scheduleEmit_(MODIFY, createLink(target, key));
-						}
+						const notify = () =>
+							this.$scheduleEmit_(MODIFY, createLink(target, key), ...chain);
+
+						const extender = extenders?.get(key);
+						if (extender)
+							extender(notify);
+						else
+							notify();
 					}
 
 					return succeeded;
@@ -348,6 +368,6 @@ export abstract class Model {
 			});
 		};
 
-		return extend(this, true);
+		return extend(this);
 	}
 }
