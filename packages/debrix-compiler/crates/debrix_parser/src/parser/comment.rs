@@ -16,6 +16,7 @@ impl Parser {
 					if char == &'-' {
 						if let Some(char) = self.scanner.next() {
 							if char == &'>' {
+								self.scanner.next();
 								break;
 							} else {
 								comment.push('-');
