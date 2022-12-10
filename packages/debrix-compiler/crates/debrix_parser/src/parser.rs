@@ -31,6 +31,10 @@ impl Parser {
 		self.debug = value;
 	}
 
+	pub fn is_done(&self) -> bool {
+		self.scanner.is_done()
+	}
+
 	fn skip_whitespace(&mut self) {
 		loop {
 			if let Some(char) = self.scanner.peek() {

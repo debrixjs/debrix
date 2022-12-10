@@ -50,7 +50,9 @@ mod tests {
 	fn parse(input: &str) -> ast::Comment {
 		let mut parser = Parser::new(input.to_owned());
 		parser.set_debug(true);
-		parser.parse_comment().unwrap()
+		let node = parser.parse_comment().unwrap();
+		assert!(parser.is_done());
+		node
 	}
 
 	#[test]

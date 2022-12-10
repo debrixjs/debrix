@@ -42,7 +42,9 @@ mod tests {
 	fn parse(input: &str) -> ast::Identifier {
 		let mut parser = Parser::new(input.to_owned());
 		parser.set_debug(true);
-		parser.parse_identifier().unwrap()
+		let node = parser.parse_identifier().unwrap();
+		assert!(parser.is_done());
+		node
 	}
 
 	#[test]

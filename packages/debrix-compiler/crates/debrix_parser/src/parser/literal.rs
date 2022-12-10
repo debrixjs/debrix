@@ -50,6 +50,7 @@ mod tests {
 		let mut parser = new_parser("'foo'");
 		let string = parser.parse_string().unwrap();
 
+		assert!(parser.is_done());
 		assert_eq!(string.value, "foo");
 		assert_eq!(string.quote, '\'');
 	}

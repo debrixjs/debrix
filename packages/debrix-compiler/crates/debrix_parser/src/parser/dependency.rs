@@ -154,7 +154,9 @@ mod tests {
 	fn parse(input: &str) -> ast::DependencyStatement {
 		let mut parser = Parser::new(input.to_owned());
 		parser.set_debug(true);
-		parser.parse_dependency_statement().unwrap()
+		let node = parser.parse_dependency_statement().unwrap();
+		assert!(parser.is_done());
+		node
 	}
 
 	#[test]

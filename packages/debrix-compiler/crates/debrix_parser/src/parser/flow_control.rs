@@ -115,7 +115,9 @@ mod tests {
 	fn parse(input: &str) -> ast::FlowControl {
 		let mut parser = Parser::new(input.to_owned());
 		parser.set_debug(true);
-		parser.parse_flow_control().unwrap()
+		let node = parser.parse_flow_control().unwrap();
+		assert!(parser.is_done());
+		node
 	}
 
 	#[test]

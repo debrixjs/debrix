@@ -70,6 +70,7 @@ mod tests {
 		let mut parser = new_parser("foo");
 		let text = parser.parse_text().unwrap();
 
+		assert!(parser.is_done());
 		assert_eq!(text.content, "foo");
 	}
 
@@ -77,6 +78,8 @@ mod tests {
 	fn test_parse_text_binding() {
 		let mut parser = new_parser("{foo}");
 		let text_binding = parser.parse_text_binding().unwrap();
+		
+		assert!(parser.is_done());
 
 		match text_binding.expression {
 			ast::javascript::Expression::Identifier(ident) => {
