@@ -4,28 +4,55 @@ impl Parser {
 	pub fn parse_flow_control(&mut self) -> Result<ast::FlowControl, ParserError> {
 		let start = self.scanner.cursor();
 
-		if !self.scanner.take("#") {
-			return Err(self.expected(&["#"]));
+		if !self.scanner.take("<#") {
+			return Err(self.expected(&["<#"]));
 		}
 
 		if self.scanner.take("when") {
 			self.skip_whitespace();
 
+			if !self.scanner.take("{") {
+				return Err(self.expected(&["{"]));
+			}
+
+			self.skip_whitespace();
 			let condition = self.parse_javascript()?;
 			self.skip_whitespace();
-			let children = self.parse_flow_control_children()?;
+
+			if !self.scanner.take("}") {
+				return Err(self.expected(&["}"]));
+			}
+
+			if !self.scanner.take(">") {
+				return Err(self.expected(&[">"]));
+			}
+
+			self.skip_whitespace();
+			let children = self.parse_children()?;
 
 			let mut chain = Vec::new();
 			loop {
 				let cursor = self.scanner.cursor();
 				self.skip_whitespace();
 
-				if self.scanner.test("#else") {
+				if self.scanner.test("<#") {
 					chain.push(self.parse_flow_control_else()?);
 				} else {
 					self.scanner.set_cursor(cursor);
 					break;
 				}
+			}
+
+			if !self.scanner.take("</") {
+				return Err(self.expected(&["</"]));
+			}
+
+			if !self.scanner.take("when") {
+				return Err(self.expected(&["when"]));
+			}
+
+			if !self.scanner.take(">") {
+				return Err(self.expected(&[">"]));
 			}
 
 			return Ok(ast::FlowControl::When(ast::FlowControlWhen {
@@ -40,6 +67,11 @@ impl Parser {
 		if self.scanner.take("each") {
 			self.skip_whitespace();
 
+			if !self.scanner.take("{") {
+				return Err(self.expected(&["{"]));
+			}
+
+			self.skip_whitespace();
 			let iterator = self.parse_javascript_identifier()?;
 			self.skip_whitespace();
 
@@ -51,7 +83,29 @@ impl Parser {
 
 			let iterable = self.parse_javascript()?;
 			self.skip_whitespace();
-			let children = self.parse_flow_control_children()?;
+
+			if !self.scanner.take("}") {
+				return Err(self.expected(&["}"]));
+			}
+
+			if !self.scanner.take(">") {
+				return Err(self.expected(&[">"]));
+			}
+
+			self.skip_whitespace();
+			let children = self.parse_children()?;
+
+			if !self.scanner.take("</") {
+				return Err(self.expected(&["</"]));
+			}
+
+			if !self.scanner.take("each") {
+				return Err(self.expected(&["each"]));
+			}
+
+			if !self.scanner.take(">") {
+				return Err(self.expected(&[">"]));
+			}
 
 			return Ok(ast::FlowControl::Each(ast::FlowControlEach {
 				start,
@@ -65,39 +119,43 @@ impl Parser {
 		Err(self.unexpected())
 	}
 
-	fn parse_flow_control_children(&mut self) -> Result<Vec<ast::Node>, ParserError> {
-		if !self.scanner.take("{") {
-			return Err(self.expected(&["{"]));
-		}
-
-		self.skip_whitespace();
-		let children = self.parse_children()?;
-		self.skip_whitespace();
-
-		if !self.scanner.take("}") {
-			return Err(self.expected(&["}"]));
-		}
-
-		Ok(children)
-	}
-
 	fn parse_flow_control_else(&mut self) -> Result<ast::FlowControlElse, ParserError> {
 		let start = self.scanner.cursor();
-
-		if !self.scanner.take("#else") {
-			return Err(self.expected(&["#else"]));
-		}
-
-		self.skip_whitespace();
-
 		let mut condition = None;
-		if self.scanner.take("when") {
-			self.skip_whitespace();
-			condition = Some(self.parse_javascript()?);
+
+		if !self.scanner.take("<#") {
+			return Err(self.expected(&["<#"]));
 		}
 
-		self.skip_whitespace();
-		let children = self.parse_flow_control_children()?;
+		if !self.scanner.take("else") {
+			return Err(self.expected(&["else"]));
+		}
+
+		if self.skip_whitespace() {
+			if self.scanner.take("when") {
+				self.skip_whitespace();
+
+				if !self.scanner.take("{") {
+					return Err(self.expected(&["{"]));
+				}
+	
+				self.skip_whitespace();
+				condition = Some(self.parse_javascript()?);
+				self.skip_whitespace();
+	
+				if !self.scanner.take("}") {
+					return Err(self.expected(&["}"]));
+				}
+
+				self.skip_whitespace();
+			}
+		}
+
+		if !self.scanner.take(">") {
+			return Err(self.expected(&[">"]));
+		}
+
+		let children = self.parse_children()?;
 
 		return Ok(ast::FlowControlElse {
 			start,
@@ -120,7 +178,7 @@ mod tests {
 
 	#[test]
 	fn test_flow_control_when() {
-		let node = parse("#when foo { bar }");
+		let node = parse("<#when {foo}>bar</when>");
 
 		match node {
 			ast::FlowControl::When(node) => {
@@ -133,6 +191,13 @@ mod tests {
 					}
 					_ => panic!("expected identifier"),
 				}
+
+				match node.children.get(0).unwrap() {
+					ast::Node::Text(node) => {
+						assert_eq!(&node.content, "bar");
+					}
+					_ => panic!("expected text"),
+				}
 			}
 			_ => panic!("expected when"),
 		}
@@ -140,13 +205,23 @@ mod tests {
 
 	#[test]
 	fn test_flow_control_else() {
-		let node = parse("#when foo { bar } #else { baz }");
+		let node = parse("<#when {foo}>bar<#else>baz</when>");
 
 		match node {
 			ast::FlowControl::When(node) => {
 				assert!(node.children.len() == 1);
 				assert!(node.chain.len() == 1);
-				assert!(node.chain.get(0).unwrap().condition.is_none());
+
+				let chained = node.chain.get(0).unwrap();
+				assert!(chained.children.len() == 1);
+				assert!(chained.condition.is_none());
+
+				match chained.children.get(0).unwrap() {
+					ast::Node::Text(node) => {
+						assert_eq!(&node.content, "baz");
+					}
+					_ => panic!("expected text"),
+				}
 			}
 			_ => panic!("expected when"),
 		}
@@ -154,7 +229,7 @@ mod tests {
 
 	#[test]
 	fn test_flow_control_else_when() {
-		let node = parse("#when foo { bar } #else when baz { qux }");
+		let node = parse("<#when {foo}>bar<#else when {baz}>qux</when>");
 		match node {
 			ast::FlowControl::When(node) => {
 				assert!(node.children.len() == 1);
@@ -180,7 +255,7 @@ mod tests {
 
 	#[test]
 	fn test_flow_control_each() {
-		let node = parse("#each foo in bar { baz }");
+		let node = parse("<#each {foo in bar}>baz</each>");
 
 		match node {
 			ast::FlowControl::Each(node) => {
@@ -192,6 +267,13 @@ mod tests {
 						assert!(&expr.name == "bar");
 					}
 					_ => panic!("expected identifier"),
+				}
+
+				match node.children.get(0).unwrap() {
+					ast::Node::Text(node) => {
+						assert_eq!(&node.content, "baz");
+					}
+					_ => panic!("expected text"),
 				}
 			}
 			_ => panic!("expected each"),

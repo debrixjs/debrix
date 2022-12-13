@@ -82,6 +82,7 @@ impl Parser {
 
 		if let Some(char) = self.scanner.peek().cloned() {
 			self.scanner.next();
+			assert!(char != '#');
 			name.push(char);
 		} else {
 			return Err(self.unexpected());
