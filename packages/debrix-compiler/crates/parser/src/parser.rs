@@ -22,7 +22,7 @@ impl Parser {
 	pub fn new(input: String) -> Self {
 		Self {
 			scanner: Scanner::new(&input),
-			debug: false
+			debug: false,
 		}
 	}
 
@@ -31,11 +31,14 @@ impl Parser {
 		self.debug = value;
 	}
 
-	fn skip_whitespace(&mut self) {
+	fn skip_whitespace(&mut self) -> bool {
+		let mut has_whitespace = false;
+
 		loop {
 			if let Some(char) = self.scanner.peek() {
 				if char.is_whitespace() {
 					self.scanner.next();
+					has_whitespace = true;
 					continue;
 				}
 
@@ -43,6 +46,8 @@ impl Parser {
 					if let Some(char) = self.scanner.next() {
 						match char {
 							&'/' => {
+								has_whitespace = true;
+
 								while let Some(char) = self.scanner.next() {
 									if char == &'\n' {
 										break;
@@ -53,6 +58,8 @@ impl Parser {
 							}
 
 							&'*' => {
+								has_whitespace = true;
+
 								while let Some(char) = self.scanner.next() {
 									if char == &'*' {
 										self.scanner.next();
@@ -81,6 +88,8 @@ impl Parser {
 
 			break;
 		}
+
+		has_whitespace
 	}
 
 	fn unexpected(&self) -> ParserError {
@@ -135,7 +144,7 @@ impl Parser {
 
 		loop {
 			if let Some(char) = self.scanner.peek().cloned() {
-				if self.scanner.test("</") || char == '}' {
+				if self.scanner.test("</") || self.scanner.test("<#") || char == '}' {
 					break;
 				}
 
