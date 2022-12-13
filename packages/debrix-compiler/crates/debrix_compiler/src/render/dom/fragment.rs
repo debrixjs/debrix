@@ -253,7 +253,7 @@ impl<'a> Fragment<'a> {
 					} else {
 						let helper = self.doc.helper("bind_attr");
 
-						self.init
+						self.bind
 							.map(attr.start)
 							.write(&helper)
 							.write("(")
@@ -264,6 +264,32 @@ impl<'a> Fragment<'a> {
 							.append(&self.js.serialize(&attr.value))
 							.write("));\n");
 					}
+				}
+				ast::Attribute::Spread(attr) => {
+					let helper = self.doc.helper("bind_attr_spread");
+
+					self.bind
+						.map(attr.start)
+						.write(&helper)
+						.write("(")
+						.write(parent)
+						.write(", this.$computed(() => ")
+						.append(&self.js.serialize(&attr.value))
+						.write("));\n");
+				}
+				ast::Attribute::ShortBinding(attr) => {
+					let helper = self.doc.helper("bind_attr");
+
+					self.bind
+						.map(attr.start)
+						.write(&helper)
+						.write("(")
+						.write(parent)
+						.write(", ")
+						.write(&in_string(&attr.name.name))
+						.write(", this.$computed(() => ")
+						.append(&self.js.serialize(&attr.name.into()))
+						.write("));\n");
 				}
 			}
 		}

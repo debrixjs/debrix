@@ -106,52 +106,80 @@ impl Parser {
 	fn parse_attribute(&mut self) -> Result<ast::Attribute, ParserError> {
 		let start = self.scanner.cursor();
 
-		let name = self.parse_attribute_name()?;
-		self.skip_whitespace();
+		if self.scanner.take("{") {
+			if self.scanner.take("...") {
+				let value = self.parse_javascript()?;
 
-		if !self.scanner.take("=") {
-			return Err(self.expected(&["="]));
-		}
-		self.skip_whitespace();
-
-		if let Some(char) = self.scanner.peek() {
-			match char {
-				&'"' | &'\'' => {
-					let value = self.parse_string()?;
-
-					Ok(ast::Attribute::Static(ast::StaticAttribute {
-						start,
-						end: self.scanner.cursor(),
-						name,
-						value: Some(value),
-					}))
+				if !self.scanner.take("}") {
+					return Err(self.expected(&["}"]));
 				}
+				
+				Ok(ast::Attribute::Spread(ast::SpreadAttribute {
+					start,
+					end: self.scanner.cursor(),
+					value
+				}))
+			} else {
+				let name = self.parse_javascript_identifier()?;
 
-				&'{' => {
-					self.scanner.next();
-					self.skip_whitespace();
-
-					let expr = self.parse_javascript()?;
-					self.skip_whitespace();
-
-					if !self.scanner.take("}") {
-						return Err(self.expected(&["}"]));
-					}
-
-					Ok(ast::Attribute::Binding(ast::BindingAttribute {
-						start,
-						end: self.scanner.cursor(),
-						name,
-						value: expr,
-					}))
-				},
-
-				_ => {
-					return Err(self.expected(&["\"", "'", "{"]));
+				if !self.scanner.take("}") {
+					return Err(self.expected(&["}"]));
 				}
+				
+				Ok(ast::Attribute::ShortBinding(ast::ShortBindingAttribute {
+					start,
+					end: self.scanner.cursor(),
+					name
+				}))
 			}
 		} else {
-			Err(self.unexpected())
+			let name = self.parse_attribute_name()?;
+			self.skip_whitespace();
+	
+			if !self.scanner.take("=") {
+				return Err(self.expected(&["="]));
+			}
+			self.skip_whitespace();
+	
+			if let Some(char) = self.scanner.peek() {
+				match char {
+					&'"' | &'\'' => {
+						let value = self.parse_string()?;
+	
+						Ok(ast::Attribute::Static(ast::StaticAttribute {
+							start,
+							end: self.scanner.cursor(),
+							name,
+							value: Some(value),
+						}))
+					}
+	
+					&'{' => {
+						self.scanner.next();
+						self.skip_whitespace();
+	
+						let expr = self.parse_javascript()?;
+						self.skip_whitespace();
+	
+						if !self.scanner.take("}") {
+							return Err(self.expected(&["}"]));
+						}
+	
+						Ok(ast::Attribute::Binding(ast::BindingAttribute {
+							start,
+							end: self.scanner.cursor(),
+							name,
+							value: expr,
+						}))
+					},
+	
+					_ => {
+						return Err(self.expected(&["\"", "'", "{"]));
+					}
+				}
+			} else {
+				Err(self.unexpected())
+			}
 		}
 	}
 

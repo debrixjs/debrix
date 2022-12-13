@@ -20,6 +20,8 @@ impl From<Element> for Node {
 pub enum Attribute {
 	Static(StaticAttribute),
 	Binding(BindingAttribute),
+	Spread(SpreadAttribute),
+	ShortBinding(ShortBindingAttribute)
 }
 
 #[derive(Debug)]
@@ -36,4 +38,18 @@ pub struct BindingAttribute {
 	pub end: usize,
 	pub name: Identifier,
 	pub value: javascript::Expression,
+}
+
+#[derive(Debug)]
+pub struct SpreadAttribute {
+	pub start: usize,
+	pub end: usize,
+	pub value: javascript::Expression,
+}
+
+#[derive(Debug)]
+pub struct ShortBindingAttribute {
+	pub start: usize,
+	pub end: usize,
+	pub name: javascript::IdentifierExpression,
 }
