@@ -5,7 +5,7 @@ pub struct DependencyStatement {
 	pub start: usize,
 	pub end: usize,
 	pub default: Option<DependencyDefaultSpecifier>,
-	pub named: Option<NodeCollection<DependencyNamedSpecifier>>,
+	pub named: Option<Nodes<DependencyNamedSpecifier>>,
 	pub source: StringLiteral,
 }
 

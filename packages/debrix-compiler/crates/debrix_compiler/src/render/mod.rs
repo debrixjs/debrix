@@ -14,4 +14,3 @@ mod utils;
 
 pub(crate) use javascript_serializer::*;
 pub(crate) use utils::*;
-pub(crate) use ast::NodeCollection;

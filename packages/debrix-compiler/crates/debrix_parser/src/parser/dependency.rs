@@ -120,7 +120,7 @@ impl Parser {
 		}
 
 		let named = if has_named {
-			Some(ast::NodeCollection {
+			Some(ast::Nodes {
 				start: named_start,
 				end: named_end,
 				nodes: named,
