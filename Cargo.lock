@@ -30,15 +30,7 @@ name = "dist_node"
 version = "0.1.0"
 dependencies = [
  "debrix_compiler",
- "dist_shared",
  "neon",
-]
-
-[[package]]
-name = "dist_shared"
-version = "0.1.0"
-dependencies = [
- "debrix_compiler",
 ]
 
 [[package]]
@@ -46,7 +38,6 @@ name = "dist_wasm"
 version = "0.1.0"
 dependencies = [
  "debrix_compiler",
- "dist_shared",
  "js-sys",
  "wasm-bindgen",
 ]
