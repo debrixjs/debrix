@@ -2,7 +2,7 @@
 
 /** @type {import('eslint').Linter.Config} */
 module.exports = {
-	extends: '@debrixjs',
+	extends: '@debrix',
 	env: {
 		es2021: true,
 		node: true,
