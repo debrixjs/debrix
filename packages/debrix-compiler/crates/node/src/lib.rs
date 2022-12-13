@@ -1,8 +1,17 @@
 use neon::prelude::*;
 
+pub fn int_to_target(int: usize) -> debrix_compiler::Target {
+	match int {
+		0 => debrix_compiler::Target::Client,
+		1 => debrix_compiler::Target::Hydration,
+		2 => debrix_compiler::Target::Server,
+		_ => unreachable!(),
+	}
+}
+
 fn build(mut cx: FunctionContext) -> JsResult<JsObject> {
 	let input = cx.argument::<JsString>(0)?.value(&mut cx);
-	let target = dist_shared::int_to_target(cx.argument::<JsNumber>(1)?.value(&mut cx) as usize);
+	let target = int_to_target(cx.argument::<JsNumber>(1)?.value(&mut cx) as usize);
 
 	let result = match debrix_compiler::build(input, target) {
 		Ok(result) => result,

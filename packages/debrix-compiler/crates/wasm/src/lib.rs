@@ -1,5 +1,14 @@
 use wasm_bindgen::prelude::*;
 
+pub fn int_to_target(int: usize) -> debrix_compiler::Target {
+	match int {
+		0 => debrix_compiler::Target::Client,
+		1 => debrix_compiler::Target::Hydration,
+		2 => debrix_compiler::Target::Server,
+		_ => unreachable!(),
+	}
+}
+
 fn serialize_chunk(chunk: &debrix_compiler::Chunk) -> js_sys::Object {
 	let serialized = js_sys::Object::new();
 
@@ -64,7 +73,7 @@ where
 
 #[wasm_bindgen]
 pub fn build(input: &str, target: usize) -> js_sys::Object {
-	let target = dist_shared::int_to_target(target);
+	let target = int_to_target(target);
 
 	serialize_result(match debrix_compiler::build(input.to_owned(), target) {
 		Ok(result) => Ok(serialize_chunk(&result)),
