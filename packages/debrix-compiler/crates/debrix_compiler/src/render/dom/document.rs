@@ -218,7 +218,7 @@ impl Document {
 
 	pub(crate) fn find_declaration(&self, kind: &str, name: &str) -> Option<String> {
 		if let Some(kind) = self.declaration_map.get(kind) {
-			Some(kind.get(name).unwrap().to_owned())
+			kind.get(name).map(|str| str.to_owned())
 		} else {
 			None
 		}
