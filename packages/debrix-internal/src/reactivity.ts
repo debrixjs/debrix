@@ -39,6 +39,34 @@ export function bind_attr<N extends Element>(node: N, attr: string, accessor: Co
 	};
 }
 
+export function bind_attr_spread<N extends Element>(node: N, accessor: Computed<Record<string, string | undefined>>): Lifecycle {
+	const render = () => {
+		const attrs = accessor.get();
+
+		for (const name in attrs) {
+			if (Object.prototype.hasOwnProperty.call(attrs, name)) {
+				const value = attrs[name];
+
+				// This is correct. I want to check if value is '' or undefined.
+				// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+				if (value)
+					node.setAttribute(name, value);
+				else
+					node.removeAttribute(name);
+			}
+		}
+	};
+
+	const subscription = accessor.observe(render);
+	render();
+	
+	return {
+		destroy() {
+			subscription.revoke();
+		},
+	};
+}
+
 export function bind_when(
 	nodes: NodeLike<ChildNode>[],
 	accessor: Computed<boolean>
@@ -90,34 +118,34 @@ export function bind_each<T = unknown>(
 		insert(target, previous) {
 			const rerender = (array: ArrayLike<T>) => {
 				const newNodes: ChildNode[] = [];
-		
+
 				const length = array.length;
 				for (let i = 0; i < length; i++)
 					newNodes.push(...render(array[i]!));
-		
+
 				const newLength = newNodes.length;
 				const prevLength = prevNodes.length;
 				let prevNode = previous;
-		
+
 				for (let i = 0; i < prevLength; i++) {
 					if (i < newLength)
 						target.replaceChild(prevNode = newNodes[i]!, prevNodes[i]!);
 					else
 						target.removeChild(prevNodes[i]!);
 				}
-		
+
 				if (newLength > prevLength) {
 					const nodes = new Array<ChildNode>(newLength - prevLength);
-		
+
 					for (let i = 0; i < newLength; i++)
 						nodes[i] = newNodes[i]!;
-		
+
 					insert(target, prevNode, ...nodes);
 				}
-		
+
 				prevNodes = newNodes;
 			};
-		
+
 			rerender(accessor.get());
 			subscription = accessor.observe(() => rerender(accessor.get()));
 		},

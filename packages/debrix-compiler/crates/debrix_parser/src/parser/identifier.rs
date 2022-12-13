@@ -1,7 +1,7 @@
 use crate::*;
 
 pub fn is_identifier(char: &char) -> bool {
-	char.is_alphanumeric() || char == &'_' || char == &'$'
+	char.is_alphanumeric() || char == &'_' || char == &'$' || char == &':'
 }
 
 impl Parser {

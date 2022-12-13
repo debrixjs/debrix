@@ -7,7 +7,6 @@ pub struct Element {
 	pub tag_name: Identifier,
 	pub end_tag: Option<Range>,
 	pub attributes: Vec<Attribute>,
-	pub bindings: Option<NodeCollection<Binding>>,
 	pub children: Vec<Node>,
 }
 
@@ -20,7 +19,9 @@ impl From<Element> for Node {
 #[derive(Debug)]
 pub enum Attribute {
 	Static(StaticAttribute),
-	Binding(Binding),
+	Binding(BindingAttribute),
+	Spread(SpreadAttribute),
+	ShortBinding(ShortBindingAttribute)
 }
 
 #[derive(Debug)]
@@ -32,9 +33,23 @@ pub struct StaticAttribute {
 }
 
 #[derive(Debug)]
-pub struct Binding {
+pub struct BindingAttribute {
 	pub start: usize,
 	pub end: usize,
 	pub name: Identifier,
 	pub value: javascript::Expression,
+}
+
+#[derive(Debug)]
+pub struct SpreadAttribute {
+	pub start: usize,
+	pub end: usize,
+	pub value: javascript::Expression,
+}
+
+#[derive(Debug)]
+pub struct ShortBindingAttribute {
+	pub start: usize,
+	pub end: usize,
+	pub name: javascript::IdentifierExpression,
 }

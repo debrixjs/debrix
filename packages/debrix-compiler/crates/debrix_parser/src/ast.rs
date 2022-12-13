@@ -61,13 +61,13 @@ pub struct Document {
 }
 
 #[derive(Debug)]
-pub struct NodeCollection<N> {
+pub struct Nodes<N> {
 	pub start: usize,
 	pub end: usize,
 	pub nodes: Vec<N>,
 }
 
-impl<N> Default for NodeCollection<N> {
+impl<N> Default for Nodes<N> {
 	fn default() -> Self {
 		Self {
 			start: 0,

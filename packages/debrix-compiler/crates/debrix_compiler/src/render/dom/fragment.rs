@@ -129,7 +129,9 @@ impl<'a> Fragment<'a> {
 	}
 
 	fn render_element(&mut self, node: ast::Element) -> Result<String, Error> {
-		let decl = self.doc.find_declaration(COMPONENT_KIND, &node.tag_name.name);
+		let decl = self
+			.doc
+			.find_declaration(COMPONENT_KIND, &node.tag_name.name);
 
 		if let Some(decl) = decl {
 			let name = self.unique.from(&to_valid_ident(&node.tag_name.name));
@@ -159,10 +161,6 @@ impl<'a> Fragment<'a> {
 			}
 
 			self.render_attributes(&name, node.attributes)?;
- 
-			if let Some(bindings) = node.bindings {
-				self.render_bindings(&name, bindings)?;
-			}
 
 			return Ok(name);
 		}
@@ -184,10 +182,6 @@ impl<'a> Fragment<'a> {
 			.map(node.end);
 
 		self.render_attributes(&name, node.attributes)?;
-
-		if let Some(bindings) = node.bindings {
-			self.render_bindings(&name, bindings)?;
-		}
 
 		let mut children = Vec::new();
 
@@ -230,55 +224,74 @@ impl<'a> Fragment<'a> {
 
 					self.init.write(");\n").map(attr.end);
 				}
-				ast::Attribute::Binding(binding) => {
+				ast::Attribute::Binding(attr) => {
+					if attr.name.name.starts_with("bind:") {
+						let name = &attr.name.name[5..];
+						let helper = self.doc.helper("bind");
+
+						let decl = self.doc.find_declaration(BINDER_KIND, name);
+
+						if decl.is_none() {
+							return Err(Error::compiler(
+								attr.name.start,
+								attr.name.end,
+								&format!("Undefined binder '{}'.", name),
+							));
+						}
+
+						let decl = decl.unwrap();
+
+						self.bind
+							.write(&helper)
+							.write("(")
+							.write(parent)
+							.write(", ")
+							.write(&decl)
+							.write(", this.$computed(() => ")
+							.append(&self.js.serialize(&attr.value))
+							.write("));\n");
+					} else {
+						let helper = self.doc.helper("bind_attr");
+
+						self.bind
+							.map(attr.start)
+							.write(&helper)
+							.write("(")
+							.write(parent)
+							.write(", ")
+							.write(&in_string(&attr.name.name))
+							.write(", this.$computed(() => ")
+							.append(&self.js.serialize(&attr.value))
+							.write("));\n");
+					}
+				}
+				ast::Attribute::Spread(attr) => {
+					let helper = self.doc.helper("bind_attr_spread");
+
+					self.bind
+						.map(attr.start)
+						.write(&helper)
+						.write("(")
+						.write(parent)
+						.write(", this.$computed(() => ")
+						.append(&self.js.serialize(&attr.value))
+						.write("));\n");
+				}
+				ast::Attribute::ShortBinding(attr) => {
 					let helper = self.doc.helper("bind_attr");
 
-					self.init
-						.map(binding.start)
+					self.bind
+						.map(attr.start)
 						.write(&helper)
 						.write("(")
 						.write(parent)
 						.write(", ")
-						.write(&in_string(&binding.name.name))
+						.write(&in_string(&attr.name.name))
 						.write(", this.$computed(() => ")
-						.append(&self.js.serialize(&binding.value))
+						.append(&self.js.serialize(&attr.name.into()))
 						.write("));\n");
 				}
 			}
-		}
-
-		Ok(())
-	}
-
-	fn render_bindings(
-		&mut self,
-		parent: &str,
-		bindings: NodeCollection<ast::Binding>,
-	) -> Result<(), Error> {
-		let helper = self.doc.helper("bind");
-
-		for binding in bindings.nodes {
-			let decl = self.doc.find_declaration(BINDER_KIND, &binding.name.name);
-
-			if decl.is_none() {
-				return Err(Error::compiler(
-					binding.name.start,
-					binding.name.end,
-					&format!("Undeclared binder '{}'.", binding.name.name),
-				));
-			}
-
-			let declaration = decl.unwrap();
-
-			self.bind
-				.write(&helper)
-				.write("(")
-				.write(parent)
-				.write(", ")
-				.write(&declaration)
-				.write(", this.$computed(() => ")
-				.append(&self.js.serialize(&binding.value))
-				.write("));\n");
 		}
 
 		Ok(())
