@@ -1,5 +1,7 @@
 use super::*;
 
+const OVERRIDES_PROPERTY: [&str; 6] = ["null", "undefined", "NaN", "Infinity", "false", "true"];
+
 pub struct JavascriptSerializer {
 	pub local_vars: Vec<String>,
 }
@@ -214,11 +216,24 @@ impl JavascriptSerializer {
 	) -> Chunk {
 		let mut chunk = Chunk::new();
 
-		if this && !self.local_vars.contains(&expr.name) {
-			chunk.map(expr.start).write("this.");
+		if this
+			&& !self.local_vars.contains(&expr.name)
+			&& !OVERRIDES_PROPERTY.contains(&expr.name.as_ref())
+		{
+			chunk
+				.map(expr.start)
+				.write("(")
+				.write(&in_string(&expr.name))
+				.write(" in this ? this[")
+				.write(&in_string(&expr.name))
+				.write("] : ")
+				.write(&expr.name)
+				.write(")")
+				.map(expr.end);
+		} else {
+			chunk.map(expr.start).write(&expr.name).map(expr.end);
 		}
 
-		chunk.write(&expr.name).map(expr.end);
 		chunk
 	}
 
