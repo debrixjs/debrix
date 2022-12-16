@@ -7,6 +7,18 @@ pub struct Text {
 	pub content: String,
 }
 
+impl Text {
+	pub fn range(&self) -> Range {
+		Range::new(self.start, self.end)
+	}
+}
+
+impl From<Text> for Range {
+	fn from(node: Text) -> Self {
+		node.range()
+	}
+}
+
 impl From<Text> for Node {
 	fn from(node: Text) -> Node {
 		Node::Text(node)
@@ -18,6 +30,18 @@ pub struct TextBinding {
 	pub start: usize,
 	pub end: usize,
 	pub expression: javascript::Expression,
+}
+
+impl TextBinding {
+	pub fn range(&self) -> Range {
+		Range::new(self.start, self.end)
+	}
+}
+
+impl From<TextBinding> for Range {
+	fn from(node: TextBinding) -> Self {
+		node.range()
+	}
 }
 
 impl From<TextBinding> for Node {

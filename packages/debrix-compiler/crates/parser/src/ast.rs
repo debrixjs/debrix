@@ -36,7 +36,7 @@ impl Node {
 			Node::FlowControl(node) => node.start(),
 		}
 	}
-	
+
 	pub fn end(&self) -> usize {
 		match self {
 			Node::DependencyStatement(node) => node.end,
@@ -53,6 +53,18 @@ impl Node {
 pub struct Range {
 	pub start: usize,
 	pub end: usize,
+}
+
+impl Range {
+	pub fn new(start: usize, end: usize) -> Self {
+		Self { start, end }
+	}
+}
+
+impl Default for Range {
+	fn default() -> Self {
+		Self::new(0, 0)
+	}
 }
 
 #[derive(Debug)]
