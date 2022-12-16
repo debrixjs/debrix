@@ -6,6 +6,7 @@ impl Parser {
 		let mut self_closing = false;
 		let mut attributes = Vec::new();
 		let mut children = Vec::new();
+		let mut start_tag = ast::Range::new(start, 0);
 		let mut end_tag = None;
 
 		if !self.scanner.take("<") {
@@ -45,6 +46,8 @@ impl Parser {
 			return Err(self.expected(&[">"]));
 		}
 
+		start_tag.end = self.scanner.cursor();
+
 		if !self_closing {
 			children = self.parse_children()?;
 
@@ -70,6 +73,7 @@ impl Parser {
 			start,
 			end: self.scanner.cursor(),
 			tag_name,
+			start_tag,
 			end_tag,
 			attributes,
 			children,
@@ -240,6 +244,21 @@ mod tests {
 			}
 
 			_ => panic!("expected text"),
+		}
+	}
+
+	#[test]
+	fn test_accurate_tag_ranges() {
+		let element = parse("<p></p>");
+
+		assert_eq!(element.start_tag.start, 0);
+		assert_eq!(element.start_tag.end, 3);
+
+		if let Some(range) = element.end_tag {
+			assert_eq!(range.start, 3);
+			assert_eq!(range.end, 7);
+		} else {
+			panic!("expected end_tag")
 		}
 	}
 }

@@ -5,6 +5,7 @@ pub struct Element {
 	pub start: usize,
 	pub end: usize,
 	pub tag_name: Identifier,
+	pub start_tag: Range,
 	pub end_tag: Option<Range>,
 	pub attributes: Vec<Attribute>,
 	pub children: Vec<Node>,
