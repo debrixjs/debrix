@@ -37,7 +37,7 @@ fn build(mut cx: FunctionContext) -> JsResult<JsObject> {
 					cx.throw(js_err)
 				}
 				debrix_compiler::Error::CompilerError(err) => {
-					let js_err = cx.error(format!("{:?}", err))?;
+					let js_err = cx.empty_object();
 
 					let js_type = cx.number(0);
 					let js_message = cx.string(format!("{:?}", err));
