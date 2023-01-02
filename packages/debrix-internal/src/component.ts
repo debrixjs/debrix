@@ -8,6 +8,9 @@ class _SelfAttrs extends Model {
 	[name: string]: any
 
 	/** @internal */
+	readonly $names = new Set();
+
+	/** @internal */
 	constructor(initial: ComponentAttrs) {
 		super();
 
@@ -29,6 +32,7 @@ class _SelfAttrs extends Model {
 						prev[key] = this[key];
 
 					this[key] = newValue[key];
+					this.$names.add(key);
 				}
 
 				for (const [key] of changes.deletions) {
@@ -38,6 +42,7 @@ class _SelfAttrs extends Model {
 					} else {
 						delete this[key];
 					}
+					this.$names.delete(key);
 				}
 			} else {
 				for (const key of new Set([...Object.keys(oldValue), ...Object.keys(newValue)])) {
@@ -47,15 +52,19 @@ class _SelfAttrs extends Model {
 					if (inOld) {
 						if (inNew) {
 							this[key] = newValue[key];
-						} else if (hasOwn(prev, key)) {
-							this[key] = prev[key];
-							delete prev[key];
 						} else {
-							delete this[key];
+							if (hasOwn(prev, key)) {
+								this[key] = prev[key];
+								delete prev[key];
+							} else {
+								delete this[key];
+							}
+							this.$names.add(key);
 						}
 					} else if (inNew) {
 						prev[key] = this[key];
 						this[key] = newValue[key];
+						this.$names.add(key);
 					}
 				}
 			}

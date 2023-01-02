@@ -39,27 +39,31 @@ export function bind_attr<N extends Element>(node: N, attr: string, accessor: Co
 	};
 }
 
-export function bind_attr_spread<N extends Element>(node: N, accessor: Computed<Record<string, string | undefined>>): Lifecycle {
+export type AttributeMap = {
+	readonly [_ in string]?: string;
+} & {
+	readonly $names: ReadonlySet<string>;
+};
+
+export function bind_attr_spread<N extends Element>(node: N, accessor: Computed<AttributeMap>): Lifecycle {
 	const render = () => {
 		const attrs = accessor.get();
 
-		for (const name in attrs) {
-			if (Object.prototype.hasOwnProperty.call(attrs, name)) {
-				const value = attrs[name];
+		for (const name of attrs.$names) {
+			const value = attrs[name];
 
-				// This is correct. I want to check if value is '' or undefined.
-				// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-				if (value)
-					node.setAttribute(name, value);
-				else
-					node.removeAttribute(name);
-			}
+			// This is correct. I want to check if value is '' or undefined.
+			// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+			if (value)
+				node.setAttribute(name, value);
+			else
+				node.removeAttribute(name);
 		}
 	};
 
 	const subscription = accessor.observe(render);
 	render();
-	
+
 	return {
 		destroy() {
 			subscription.revoke();
