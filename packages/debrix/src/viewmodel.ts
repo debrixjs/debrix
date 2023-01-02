@@ -4,7 +4,7 @@ import { createFrameTicker } from './scheduler';
 export interface Computed<T = unknown> {
 	get(): T
 	dispose(): void
-	observe(listener: SubscriptionListener): Subscription;
+	observe(listener: SubscriptionListener<T>): Subscription;
 }
 
 export abstract class ViewModel extends Model {
@@ -14,7 +14,7 @@ export abstract class ViewModel extends Model {
 	}
 
 	$computed<T>(get: () => T): Computed<T> {
-		const listeners = new Set<SubscriptionListener>();
+		const listeners = new Set<SubscriptionListener<T>>();
 		let value: T;
 		let revoke: (() => void) | undefined;
 		let dirty = true;
@@ -34,10 +34,8 @@ export abstract class ViewModel extends Model {
 					revoke = observe(() => {
 						dirty = true;
 
-						this.$schedule(() => {
-							for (const listener of listeners)
-								listener();
-						});
+						for (const listener of listeners)
+							listener();
 					});
 				}
 

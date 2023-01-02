@@ -17,12 +17,12 @@ impl JavascriptSerializer {
 		self._serialize(expr, true)
 	}
 
-	pub fn _serialize(&self, expr: &ast::javascript::Expression, this: bool) -> Chunk {
+	pub fn _serialize(&self, expr: &ast::javascript::Expression, thisify: bool) -> Chunk {
 		let mut chunk = Chunk::new();
 
 		match expr {
 			ast::javascript::Expression::Identifier(expr) => {
-				return self.serialize_identifier(expr, this);
+				return self.serialize_identifier(expr, thisify);
 			}
 			ast::javascript::Expression::Literal(expr) => {
 				chunk.map(expr.start()).write(&expr.raw()).map(expr.end());
@@ -35,30 +35,32 @@ impl JavascriptSerializer {
 					.write(&operator)
 					.map(expr.start + operator.len())
 					.write(" ")
-					.append(&self._serialize(&expr.operand, true));
+					.append(&self._serialize(&expr.operand, thisify));
 			}
 			ast::javascript::Expression::Binary(expr) => {
 				chunk
-					.append(&self._serialize(&expr.left, true))
+					.append(&self._serialize(&expr.left, thisify))
 					.write(" ")
 					.write(&expr.operator.to_string())
 					.write(" ")
-					.append(&self._serialize(&expr.right, true));
+					.append(&self._serialize(&expr.right, thisify));
 			}
 			ast::javascript::Expression::Conditional(expr) => {
 				chunk
-					.append(&self._serialize(&expr.condition, true))
+					.append(&self._serialize(&expr.condition, thisify))
 					.write(" ? ")
-					.append(&self._serialize(&expr.consequent, true))
+					.append(&self._serialize(&expr.consequent, thisify))
 					.write(" : ")
-					.append(&self._serialize(&expr.alternate, true));
+					.append(&self._serialize(&expr.alternate, thisify));
 			}
 			ast::javascript::Expression::Call(expr) => {
-				chunk.append(&self._serialize(&expr.callee, true)).write("(");
+				chunk
+					.append(&self._serialize(&expr.callee, thisify))
+					.write("(");
 
 				let mut arguments = expr.arguments.iter().peekable();
 				while let Some(arg) = arguments.next() {
-					chunk.append(&self._serialize(arg, true));
+					chunk.append(&self._serialize(arg, thisify));
 
 					if arguments.peek().is_some() {
 						chunk.write(", ");
@@ -71,14 +73,14 @@ impl JavascriptSerializer {
 				chunk
 					.map(expr.start)
 					.write("new ")
-					.append(&self._serialize(&expr.callee, true));
+					.append(&self._serialize(&expr.callee, thisify));
 
 				if expr.arguments.len() > 0 {
 					chunk.write("(");
 
 					let mut arguments = expr.arguments.iter().peekable();
 					while let Some(arg) = arguments.next() {
-						chunk.append(&self._serialize(arg, true));
+						chunk.append(&self._serialize(arg, thisify));
 
 						if arguments.peek().is_some() {
 							chunk.write(", ");
@@ -89,7 +91,7 @@ impl JavascriptSerializer {
 				}
 			}
 			ast::javascript::Expression::Member(expr) => {
-				chunk.append(&self._serialize(&expr.object, true));
+				chunk.append(&self._serialize(&expr.object, thisify));
 
 				if !expr.optional && !expr.computed {
 					chunk.write(".");
@@ -119,28 +121,30 @@ impl JavascriptSerializer {
 					}
 				}
 
-				chunk.write(") => ").append(&self._serialize(&expr.body, true));
+				chunk
+					.write(") => ")
+					.append(&self._serialize(&expr.body, thisify));
 			}
 			ast::javascript::Expression::Assignment(expr) => {
 				chunk
-					.append(&self._serialize(&expr.left, true))
+					.append(&self._serialize(&expr.left, thisify))
 					.write(" ")
 					.write(&expr.operator.to_string())
 					.write(" ")
-					.append(&self._serialize(&expr.right, true));
+					.append(&self._serialize(&expr.right, thisify));
 			}
 			ast::javascript::Expression::Spread(expr) => {
 				chunk
 					.map(expr.start)
 					.write("...")
-					.append(&self._serialize(&expr.argument, true));
+					.append(&self._serialize(&expr.argument, thisify));
 			}
 			ast::javascript::Expression::Template(expr) => {
 				return self.serialize_template(expr);
 			}
 			ast::javascript::Expression::TaggedTemplate(expr) => {
 				chunk
-					.append(&self._serialize(&expr.tag, true))
+					.append(&self._serialize(&expr.tag, thisify))
 					.append(&self.serialize_template(&expr.quasi));
 			}
 			ast::javascript::Expression::Object(expr) => {
@@ -153,22 +157,22 @@ impl JavascriptSerializer {
 							chunk.append(&self.serialize_identifier(&prop.key, false));
 
 							if let Some(value) = &prop.value {
-								chunk.write(": ").append(&self._serialize(value, true));
+								chunk.write(": ").append(&self._serialize(value, thisify));
 							}
 						}
 						ast::javascript::ObjectProperty::Computed(prop) => {
 							chunk
 								.map(prop.start)
 								.write("[")
-								.append(&self._serialize(&prop.key, true))
+								.append(&self._serialize(&prop.key, thisify))
 								.write("]: ")
-								.append(&self._serialize(&prop.value, true));
+								.append(&self._serialize(&prop.value, thisify));
 						}
 						ast::javascript::ObjectProperty::Spread(prop) => {
 							chunk
 								.map(prop.start)
 								.write("...")
-								.append(&self._serialize(&prop.argument, true));
+								.append(&self._serialize(&prop.argument, thisify));
 						}
 					}
 
@@ -184,7 +188,7 @@ impl JavascriptSerializer {
 
 				let mut elements = expr.elements.iter().peekable();
 				while let Some(expr) = elements.next() {
-					chunk.append(&self._serialize(&expr, true));
+					chunk.append(&self._serialize(&expr, thisify));
 
 					if elements.peek().is_some() {
 						chunk.write(", ");
@@ -197,7 +201,7 @@ impl JavascriptSerializer {
 				chunk
 					.map(expr.start)
 					.write("(")
-					.append(&self._serialize(&expr.expression, true))
+					.append(&self._serialize(&expr.expression, thisify))
 					.write(")")
 					.map(expr.end);
 			}
@@ -212,14 +216,31 @@ impl JavascriptSerializer {
 	fn serialize_identifier(
 		&self,
 		expr: &ast::javascript::IdentifierExpression,
-		this: bool,
+		thisify: bool,
 	) -> Chunk {
 		let mut chunk = Chunk::new();
 
-		if this
-			&& !self.local_vars.contains(&expr.name)
-			&& !OVERRIDES_PROPERTY.contains(&expr.name.as_ref())
-		{
+		let is_local = self.local_vars.contains(&expr.name);
+		let force_local = is_local || OVERRIDES_PROPERTY.contains(&expr.name.as_ref());
+		let is_reserved = RESERVED_JAVASCRIPT_KEYWORDS.contains(&expr.name.as_ref());
+
+		if force_local && is_reserved {
+			unreachable!(
+				"Invalid local identifier {} was previously defined.",
+				&expr.name
+			);
+		}
+
+		if !force_local && thisify && is_reserved {
+			// renders: this["identifier"]
+			chunk
+				.map(expr.start)
+				.write("this[")
+				.write(&in_string(&expr.name))
+				.write("]")
+				.map(expr.end);
+		} else if !force_local && thisify {
+			// renders: ("identifier" in this ? this["identifier"] : identifier)
 			chunk
 				.map(expr.start)
 				.write("(")
@@ -231,6 +252,7 @@ impl JavascriptSerializer {
 				.write(")")
 				.map(expr.end);
 		} else {
+			// renders: identifier
 			chunk.map(expr.start).write(&expr.name).map(expr.end);
 		}
 

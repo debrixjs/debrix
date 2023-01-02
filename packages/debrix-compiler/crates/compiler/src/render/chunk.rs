@@ -29,13 +29,14 @@ impl Chunk {
 		self.source += &chunk.source;
 
 		for mapping in &chunk.mappings {
-			self.mappings.push((
-				mapping.0,
-				self.pos + mapping.1,
-			));
+			self.mappings.push((mapping.0, self.pos + mapping.1));
 		}
 
 		self.pos += &chunk.pos;
 		self
+	}
+
+	pub fn is_empty(&self) -> bool {
+		self.source.is_empty()
 	}
 }

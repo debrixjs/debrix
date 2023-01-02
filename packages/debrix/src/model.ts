@@ -1,6 +1,14 @@
 import { createMicroTicker, createScheduler, Scheduler, Task, Ticker } from './scheduler';
 
-export type SubscriptionListener = () => void;
+export type Diff = [name: string, diff: Diff][];
+
+export interface Changes {
+	additions: Diff
+	modifications: Diff
+	deletions: Diff
+}
+
+export type SubscriptionListener<T = unknown> = (newValue?: T, oldValue?: T, changes?: Changes) => void;
 
 export interface Subscription {
 	revoke(): void;
@@ -8,81 +16,115 @@ export interface Subscription {
 
 export type Extender = (cb: () => void) => void;
 
-type Link = [target: object, key: string | symbol];
-const createLink = (target: object, key: string | symbol): Link => [target, key];
+//#region link
 
-const GET = 0, MODIFY = 1;
+const LINK = Symbol('link');
+const CHAIN = Symbol('chain');
+
+type Link = readonly [target: object, key: string | symbol] & { [LINK]: true };
+type Chain = readonly Link[] & { [CHAIN]: true };
+
+function createLink(target: object, key: string | symbol): Link {
+	return Object.assign([target, key] as const, { [LINK]: true as const });
+}
+
+function createChain(...links: readonly Link[]): Chain {
+	return Object.assign(links.slice(), { [CHAIN]: true as const });
+}
+
+function attachLink(chain: Chain | undefined, link: Link): Chain {
+	return createChain(...chain ?? [], link);
+}
+
+function lastLinkOf(chain: Chain): Link {
+	return chain[chain.length - 1]!;
+}
+
+function isEqualLink(link1: Link, link2: Link) {
+	return link1[0] === link2[0] && link1[1] === link2[1];
+}
+
+function isLink(value: unknown): value is Link {
+	// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+	return !!value && typeof value === 'object' && LINK in value;
+}
+
+//#endregion link
 
 export interface Reference<T = unknown> {
 	get(): T
 	set(value: T): void
-	observe(listener: SubscriptionListener): Subscription;
+	observe(listener: SubscriptionListener<T>): Subscription;
 }
 
 export interface ModelOptions {
 	ticker?: Ticker
 }
 
-function get<K, V>(map: Map<K, V>, key: K, _default: () => unknown): V {
-	let value: V;
-	map.has(key) ? value = map.get(key)! : map.set(key, value = _default() as V);
-	return value;
+enum EventType {
+	Get,
+	Modify
+}
+
+interface Event2<T = unknown> {
+	readonly type: EventType
+	readonly chain: Chain,
+	readonly oldValue?: T,
+	readonly newValue?: T,
+	readonly changes?: Changes
+}
+
+interface EventFilter {
+	readonly type?: EventType
+	readonly link?: Link | readonly Link[],
 }
 
 interface Events {
-	emit(type: 0 | 1, ...links: readonly Link[]): void
-	on(type: 0 | 1, link: Link | readonly Link[], listener: () => void): () => void
-	on(type: 0 | 1, link: null, listener: (link: Link) => void): () => void
+	emit(event: Event2): void
+	on<T = unknown>(listener: (event: Event2<T>) => void, filter?: EventFilter): () => void
 	pipe(to: Events): void
 }
 
 function createEvents(): Events {
-	const onAll = [
-		new Set<(link: Link) => void>(),
-		new Set<(link: Link) => void>()
-	] as const;
-	const onLink = new Map<Link[0], Map<Link[1], [Set<() => void>, Set<() => void>]>>();
+	const listeners = new Set<readonly [(event: Event2<any>) => void, EventFilter | undefined]>();
 	const copy = new Set<Events>();
 
-	const getOnLink = (type: 0 | 1, link: Link) =>
-		get(get(onLink, link[0], () => new Map()), link[1], () => [new Set, new Set])[type];
-
 	return {
-		emit(type: 0 | 1, ...links: readonly Link[]): void {
-			for (const events of copy)
-				// eslint-disable-next-line prefer-rest-params
-				(events.emit as (...args: unknown[]) => void)(...arguments);
+		emit(event): void {
+			// Listeners needs to be copied in order to prevent infinite loops.
+			for (const [listener, filter] of Array.from(listeners)) {
+				if (filter) {
+					if (filter.link) {
+						const link = lastLinkOf(event.chain);
+						if (
+							isLink(filter.link) ?
+								!isEqualLink(link, filter.link) :
+								!filter.link.some(f => isEqualLink(link, f))
+						)
+							continue;
+					}
 
-			for (const link of links) {
-				for (const listener of onAll[type])
-					listener(link);
-	
-				for (const listener of getOnLink(type, link))
-					listener();
+					if (filter.type && event.type !== filter.type)
+						continue;
+				}
+
+				listener(event);
 			}
+
+			for (const events of copy)
+				events.emit(event);
 		},
 
 		pipe(to: Events) {
 			copy.add(to);
 		},
 
-		on(type: 0 | 1, link: Link | readonly Link[] | null, listener: (link: Link) => void): () => void {
-			let targets: Set<(link: Link) => void>[];
-			if (link !== null) {
-				const isArray = Array.isArray(link[link.length - 1]);
-				const asArray = isArray ? link as readonly Link[] : [link as Link];
-
-				targets = asArray.map(link => getOnLink(type, link));
-			} else {
-				targets = [onAll[type]];
-			}
-			
-			for (const target of targets)
-				target.add(listener);
+		on(listener, filter): () => void {
+			const value = [listener, filter] as const;
+			listeners.add(value);
 
 			return () => {
-				for (const target of targets)
-					target.delete(listener);
+				listeners.delete(value);
 			};
 		}
 	};
@@ -126,11 +168,6 @@ export abstract class Model {
 	/** @internal */
 	private declare $e;
 
-	/** @internal */
-	private $observe_(link: Link | readonly Link[], listener: SubscriptionListener): () => void {
-		return this.$e.on(MODIFY, link, listener);
-	}
-
 	protected declare $ticker: Ticker;
 
 	/** @internal */
@@ -157,9 +194,8 @@ export abstract class Model {
 		this.$s.enqueue_(task);
 	}
 
-	private $scheduleEmit_(type: 0 | 1, ...links: readonly Link[]): void {
-		for (const link of links)
-			this.$schedule(() => this.$e.emit(type, link), link);
+	private $scheduleEmit_(event: Event2): void {
+		this.$schedule(() => this.$e.emit(event), lastLinkOf(event.chain));
 	}
 
 	protected $tick(): void {
@@ -168,27 +204,23 @@ export abstract class Model {
 
 	/** @internal */
 	/* #__PURE__ */
-	protected $magic(callback: () => void): (listener: SubscriptionListener) => (() => void) {
-		const links: Link[] = [];
-		const dispose = this.$e.on(GET, null, (link: Link) => links.push(link));
+	protected $magic(callback: () => void): (listener: () => void) => (() => void) {
+		const filter: Link[] = [];
+		const dispose = this.$e.on((event) => filter.push(lastLinkOf(event.chain)), { type: EventType.Get });
 
 		callback();
 		dispose();
 
-		return (listener) => {
-			const observers = links.map(link => this.$observe_(link satisfies Link, listener));
-			return () => {
-				for (const revoke of observers)
-					revoke();
-			};
-		};
+		return (listener) =>
+			// In cases where filter is an empty array, the listener will never be called.
+			this.$e.on(listener, { type: EventType.Modify, link: filter });
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	protected $observe(target: unknown, listener: SubscriptionListener): Subscription;
-	protected $observe(target: readonly Link[], listener: SubscriptionListener): Subscription {
+	protected $observe<T>(target: T, listener: SubscriptionListener<T>): Subscription;
+	protected $observe(link: Link, listener: SubscriptionListener): Subscription {
 		return {
-			revoke: this.$observe_(target, listener)
+			revoke: this.$e.on((event) => listener(event.newValue, event.oldValue, event.changes), { type: EventType.Modify, link })
 		};
 	}
 
@@ -218,8 +250,8 @@ export abstract class Model {
 		const attach = ATTACH.get(Object.getPrototypeOf(this) as typeof Model);
 		const extenders = EXTENDERS.get(Object.getPrototypeOf(this) as typeof Model);
 
-		const extend = <T extends object>(object: T, chain: readonly Link[] = []): T => {
-			const isRoot = !chain.length;
+		const extend = <T extends object>(object: T, chain?: Chain): T => {
+			const isRoot = !chain;
 			let returnLink = false;
 			let returnChain = false;
 			let silent = false;
@@ -241,15 +273,21 @@ export abstract class Model {
 						revoke?.();
 						dirty = false;
 
-						let next!: unknown;
-						const observe = this.$magic(() => next = Reflect.get(target, key, receiver) as unknown);
+						const oldValue = value;
+						let newValue!: unknown;
+						const observe = this.$magic(() => newValue = Reflect.get(target, key, receiver) as unknown);
 
-						if (next !== value)
-							value = next;
+						if (newValue !== value)
+							value = newValue;
 
 						revoke = observe(() => {
 							dirty = true;
-							this.$scheduleEmit_(MODIFY, createLink(target, key));
+							this.$scheduleEmit_({
+								chain: attachLink(chain, createLink(target, key)),
+								type: EventType.Modify,
+								oldValue: oldValue,
+								newValue: value
+							});
 						});
 					}
 
@@ -274,18 +312,21 @@ export abstract class Model {
 							case '$ref': {
 								returnLink = true;
 								return <T>(link: Link): Reference<T> => ({
-									get: (): T => Reflect.get(...link) as T,
-									set: (value: T): void => void Reflect.set(...link, value),
+									get: (): T => Reflect.get(...link as readonly [target: object, key: string | symbol]) as T,
+									set: (value: T): void => void Reflect.set(...link as readonly [target: object, key: string | symbol], value),
 									observe: (listener) => ({
-										revoke: this.$observe_(link /* satisfies Link */, listener)
+										revoke: this.$e.on<T>((event) => listener(event.newValue, event.oldValue, event.changes), { type: EventType.Modify, link })
 									})
 								});
 							}
 
 							case '$notify': {
 								returnChain = true;
-								return (chain: readonly Link[]): void =>
-									this.$scheduleEmit_(MODIFY, ...chain);
+								return (chain: Chain): void =>
+									this.$scheduleEmit_({
+										type: EventType.Modify,
+										chain
+									});
 							}
 
 							case '$silent': {
@@ -308,7 +349,7 @@ export abstract class Model {
 
 					if (returnChain) {
 						returnChain = false;
-						return [createLink(target, key), ...chain];
+						return attachLink(chain, createLink(target, key));
 					}
 
 					const descriptior = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), key);
@@ -318,29 +359,40 @@ export abstract class Model {
 
 					const value = Reflect.get(target, key, receiver);
 
-					if (!silent)
-						this.$e.emit(GET, createLink(target, key), ...chain);
+					if (!silent) {
+						this.$e.emit({
+							type: EventType.Get,
+							chain: attachLink(chain, createLink(target, key)),
+							newValue: value,
+						});
+					}
 
 					if (typeof value === 'object' && value !== null)
-						return extend(value, [createLink(target, key), ...chain]);
+						return extend(value, attachLink(chain, createLink(target, key)));
 
 					return value;
 				},
 
-				set: (target, key, value, receiver) => {
-					const succeeded = Reflect.set(target, key, value, receiver);
+				set: (target, key, newValue: unknown, receiver) => {
+					const oldValue = Reflect.get(receiver, key) as unknown;
+					const succeeded = Reflect.set(target, key, newValue, receiver);
 
 					// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
 					if (isRoot && attach?.has(key)) {
 						// This is a unsafe convertion from any to Model.
 						// However, explicitly checking if the value is a Model is too size consuming.
-						const model = value as Model;
+						const model = newValue as Model;
 						model.$e.pipe(this.$e);
 					}
 
 					if (!silent) {
 						const notify = () =>
-							this.$scheduleEmit_(MODIFY, createLink(target, key), ...chain);
+							this.$scheduleEmit_({
+								type: EventType.Modify,
+								chain: attachLink(chain, createLink(target, key)),
+								newValue,
+								oldValue,
+							});
 
 						const extender = extenders?.get(key);
 						if (extender)
