@@ -413,11 +413,10 @@ impl Fragment {
 			match &attribute {
 				ast::Attribute::Static(attribute) => {
 					if &attribute.name.name == "slot" {
-						// TODO:
 						continue;
 					}
 
-					if &attribute.name.name == "is" {
+					if &attribute.name.name == "as" {
 						continue;
 					}
 				}
