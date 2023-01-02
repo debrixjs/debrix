@@ -236,7 +236,7 @@ impl Fragment {
 						}
 
 						c_attrs
-							.write(&attribute.name.name)
+							.write(&to_valid_property(&attribute.name.name))
 							.write(": ")
 							.write(&in_string(
 								&attribute.value.map(|v| v.value).unwrap_or("".to_owned()),
@@ -246,7 +246,7 @@ impl Fragment {
 
 					ast::Attribute::Binding(attribute) => {
 						c_attrs
-							.write(&attribute.name.name)
+							.write(&to_valid_property(&attribute.name.name))
 							.write(": this.$computed(() => ")
 							.append(&self.js.serialize(&attribute.value))
 							.write("),\n");
@@ -254,7 +254,7 @@ impl Fragment {
 
 					ast::Attribute::ShortBinding(attribute) => {
 						c_attrs
-							.write(&attribute.name.name)
+							.write(&to_valid_property(&attribute.name.name))
 							.write(": this.$computed(() => ")
 							.append(&self.js.serialize(&attribute.name.into()))
 							.write("),\n");
