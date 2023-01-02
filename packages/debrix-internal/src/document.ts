@@ -1,4 +1,4 @@
-import { isFragment, NodeLike } from './utils';
+import { flat, isFragment, NodeLike } from './utils';
 
 export function comment(data: string) {
 	return document.createComment(data);
@@ -30,9 +30,12 @@ export function attr(element: Element, name: string, value?: string): void {
 export function insert(
 	target: ParentNode,
 	previous: ChildNode | null,
-	...nodes: readonly NodeLike<ChildNode>[]
+	...nodes: readonly (NodeLike<ChildNode> | readonly NodeLike<ChildNode>[])[]
 ) {
-	for (const node of nodes) {
+	for (const node of flat(nodes)) {
+		// eslint-disable-next-line
+		if (!node) return;
+
 		if (isFragment(node)) {
 			node.insert(target, previous);
 		} else {

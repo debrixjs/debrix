@@ -1,93 +1,101 @@
 use super::*;
 
-pub struct Fragment<'a> {
-	pub doc: &'a mut Document,
-	pub unique: Unique,
+pub struct Fragment {
 	pub js: JavascriptSerializer,
-
-	attr: Chunk,
-	decl: Chunk,
-	init: Chunk,
-	bind: Chunk,
-	insert: Chunk,
+	c_attr: Chunk,
+	c_decl: Chunk,
+	c_init: Chunk,
+	c_bind: Chunk,
+	c_insert: Chunk,
 }
 
-impl<'a> Fragment<'a> {
-	pub fn new(doc: &'a mut Document) -> Self {
+impl Fragment {
+	pub fn new() -> Self {
 		Self {
-			doc,
-			unique: Unique::new(),
 			js: JavascriptSerializer::new(),
-
-			attr: Chunk::new(),
-			decl: Chunk::new(),
-			init: Chunk::new(),
-			bind: Chunk::new(),
-			insert: Chunk::new(),
+			c_attr: Chunk::new(),
+			c_decl: Chunk::new(),
+			c_init: Chunk::new(),
+			c_bind: Chunk::new(),
+			c_insert: Chunk::new(),
 		}
 	}
 
-	pub fn render(mut self, nodes: Vec<ast::Node>) -> Result<String, Error> {
-		let render_fragment = self.doc.unique.from("render_fragment");
+	pub fn render_single(
+		self,
+		doc: &mut Document,
+		name: String,
+		node: ast::Node,
+	) -> Result<(), Error> {
+		self.render(doc, name, vec![node])
+	}
+
+	pub fn render(
+		mut self,
+		doc: &mut Document,
+		name: String,
+		nodes: Vec<ast::Node>,
+	) -> Result<(), Error> {
+		self.js.local_vars.push("$self".to_owned());
+
 		let mut elements = Vec::new();
 
 		for node in nodes {
-			elements.append(&mut self.render_node(node)?);
+			elements.append(&mut self.render_node(doc, node)?);
 		}
 
-		self.doc
-			.frags
+		doc.c_fragments
 			.write("function ")
-			.write(&render_fragment)
+			.write(&name)
 			.write("(")
-			.append(&self.attr)
-			.write(") {\n");
+			.write("$self");
 
-		if self.decl.source.len() > 0 {
-			self.doc
-				.frags
+		if self.c_attr.source.len() > 0 {
+			doc.c_fragments.write(", ").append(&self.c_attr);
+		}
+
+		doc.c_fragments.write(") {\n");
+
+		if self.c_decl.source.len() > 0 {
+			doc.c_fragments
 				.write("\t/* declarations */\n")
-				.append(&format_chunk(self.decl, 1));
+				.append(&format_chunk(self.c_decl, 1));
 		}
 
-		if self.init.source.len() > 0 {
-			self.doc
-				.frags
+		if self.c_init.source.len() > 0 {
+			doc.c_fragments
 				.write("\n\n\t/* initialization */\n")
-				.append(&format_chunk(self.init, 1));
+				.append(&format_chunk(self.c_init, 1));
 		}
 
-		if self.bind.source.len() > 0 {
-			self.doc
-				.frags
+		if self.c_bind.source.len() > 0 {
+			doc.c_fragments
 				.write("\n\n\t/* binding */\n")
-				.append(&format_chunk(self.bind, 1));
+				.append(&format_chunk(self.c_bind, 1));
 		}
 
-		if self.insert.source.len() > 0 {
-			self.doc
-				.frags
+		if self.c_insert.source.len() > 0 {
+			doc.c_fragments
 				.write("\n\n\t/* appending */\n")
-				.append(&format_chunk(self.insert, 1));
+				.append(&format_chunk(self.c_insert, 1));
 		}
 
-		self.doc
-			.frags
+		doc.c_fragments
 			.write("\n\n\treturn [")
 			.write(&elements.join(", "))
 			.write("];\n")
 			.write("}\n\n");
 
-		Ok(render_fragment)
+		Ok(())
 	}
 
-	fn render_node(&mut self, node: ast::Node) -> Result<Vec<String>, Error> {
+	fn render_node(&mut self, doc: &mut Document, node: ast::Node) -> Result<Vec<String>, Error> {
 		match node {
-			ast::Node::Comment(node) => Ok(vec![self.render_comment(node)?]),
-			ast::Node::Element(node) => Ok(vec![self.render_element(node)?]),
-			ast::Node::Text(node) => Ok(vec![self.render_text(node)?]),
-			ast::Node::TextBinding(node) => Ok(vec![self.render_text_binding(node)?]),
-			ast::Node::FlowControl(node) => self.render_flow_control(node),
+			ast::Node::Comment(node) => Ok(vec![self.render_comment(doc, node)?]),
+			ast::Node::Element(node) => Ok(vec![self.render_element(doc, node)?]),
+			ast::Node::Text(node) => Ok(vec![self.render_text(doc, node)?]),
+			ast::Node::TextBinding(node) => Ok(vec![self.render_text_binding(doc, node)?]),
+			ast::Node::FlowControl(node) => self.render_flow_control(doc, node),
 
 			_ => Err(Error::compiler(
 				node.start(),
@@ -97,9 +105,9 @@ impl<'a> Fragment<'a> {
 		}
 	}
 
-	fn insert(&mut self, target: &str, previous: &str, nodes: &str) {
-		let insert = self.doc.helper("insert");
-		self.insert
+	fn insert(&mut self, doc: &mut Document, target: &str, previous: &str, nodes: &str) {
+		let insert = doc.import("insert", None, INTERNAL_MODULE);
+		self.c_insert
 			.write(&insert)
 			.write("(")
 			.write(target)
@@ -107,14 +115,14 @@ impl<'a> Fragment<'a> {
 			.write(&previous)
 			.write(", ")
 			.write(&nodes)
-			.write(");");
+			.write(");\n");
 	}
 
-	fn render_comment(&mut self, node: ast::Comment) -> Result<String, Error> {
-		let helper = self.doc.helper("comment");
-		let name = self.unique.from("comment");
+	fn render_comment(&mut self, doc: &mut Document, node: ast::Comment) -> Result<String, Error> {
+		let helper = doc.import("comment", None, INTERNAL_MODULE);
+		let name = doc.unique.from("comment");
 
-		self.decl
+		self.c_decl
 			.write("let ")
 			.write(&name)
 			.write(" = ")
@@ -128,47 +136,267 @@ impl<'a> Fragment<'a> {
 		Ok(name)
 	}
 
-	fn render_element(&mut self, node: ast::Element) -> Result<String, Error> {
-		let decl = self
-			.doc
-			.find_declaration(COMPONENT_KIND, &node.tag_name.name);
+	fn render_element(&mut self, doc: &mut Document, node: ast::Element) -> Result<String, Error> {
+		let mut first_spread_attribute: Option<ast::Range> = None;
+		for attr in &node.attributes {
+			match attr {
+				ast::Attribute::Spread(attr) => {
+					if let Some(first) = first_spread_attribute {
+						return Err(Error::compiler(
+							attr.start,
+							attr.end,
+							&format!(
+								"Attributes can only be expanded once. Occured at {:?}.",
+								first
+							),
+						));
+					} else {
+						first_spread_attribute = Some(attr.range());
+					}
+				}
+				_ => continue,
+			}
+		}
 
-		if let Some(decl) = decl {
-			let name = self.unique.from(&to_valid_ident(&node.tag_name.name));
+		if let Some(constructor) =
+			doc.declaration(DeclarationKind::Component, Some(&node.tag_name.name))
+		{
+			let constructor = constructor.to_owned();
 
-			self.decl
+			let name = doc.unique.from(&to_valid_identifier(&node.tag_name.name));
+			let mut slots: Map<String, Vec<ast::Node>> = Map::new();
+			let mut c_attrs = Chunk::new();
+
+			for node in node.children {
+				let mut slot_name = None;
+				match &node {
+					ast::Node::Element(node) => {
+						for attr in node.attributes.iter() {
+							match attr {
+								ast::Attribute::Static(attr) => {
+									if attr.name.name == "slot" {
+										if slot_name.is_some() {
+											return Err(Error::compiler(
+												attr.start,
+												attr.end,
+												"Special attribute cannot be defined twice.",
+											));
+										}
+
+										if let Some(literal) = &attr.value {
+											slot_name = Some(literal.value.to_owned());
+										} else {
+											return Err(Error::compiler(
+												attr.start,
+												attr.end,
+												"Special attribute must have value.",
+											));
+										}
+									}
+								}
+								ast::Attribute::Binding(attr) => {
+									if attr.name.name == "slot" {
+										return Err(Error::compiler(
+											attr.start,
+											attr.end,
+											"Special attribute must be static.",
+										));
+									}
+								}
+								ast::Attribute::ShortBinding(attr) => {
+									if attr.name.name == "slot" {
+										return Err(Error::compiler(
+											attr.start,
+											attr.end,
+											"Special attribute must be static.",
+										));
+									}
+								}
+								ast::Attribute::Spread(_) => continue,
+							}
+						}
+					}
+					_ => {}
+				}
+
+				let slot_name = slot_name.unwrap_or(DEFAULT_SLOT_NAME.to_owned());
+				if let Some(vec) = slots.get_mut(&slot_name) {
+					vec.push(node);
+				} else {
+					slots.set(slot_name, vec![node]);
+				}
+			}
+
+			for attribute in node.attributes {
+				match attribute {
+					ast::Attribute::Static(attribute) => {
+						if &attribute.name.name == "slot" {
+							// TODO:
+							continue;
+						}
+
+						c_attrs
+							.write(&attribute.name.name)
+							.write(": ")
+							.write(&in_string(
+								&attribute.value.map(|v| v.value).unwrap_or("".to_owned()),
+							))
+							.write(",\n");
+					}
+
+					ast::Attribute::Binding(attribute) => {
+						c_attrs
+							.write(&attribute.name.name)
+							.write(": this.$computed(() => ")
+							.append(&self.js.serialize(&attribute.value))
+							.write("),\n");
+					}
+
+					ast::Attribute::ShortBinding(attribute) => {
+						c_attrs
+							.write(&attribute.name.name)
+							.write(": this.$computed(() => ")
+							.append(&self.js.serialize(&attribute.name.into()))
+							.write("),\n");
+					}
+
+					ast::Attribute::Spread(attribute) => {
+						c_attrs
+							.write("_: ")
+							.append(&self.js.serialize(&attribute.value))
+							.write(",\n");
+					}
+				}
+			}
+
+			self.c_decl
 				.write("let ")
 				.write(&name)
 				.write(" = ")
 				.map(node.start)
 				.write("new ")
-				.write(&decl);
+				.write(&constructor);
 
-			if node.children.len() > 0 {
-				let mut children = Vec::new();
+			self.c_decl
+				.write("({\n")
+				.write("\t__family: ")
+				.write(&in_string("__family"))
+				.write(" in ")
+				.write(&constructor)
+				.write(" && $self[")
+				.write(&constructor)
+				.write(".__family")
+				.write("],\n");
 
-				for child in node.children {
-					children.append(&mut self.render_node(child)?);
+			if !slots.is_empty() {
+				self.c_decl.write("\tslots: {\n");
+
+				let mut slots = slots.into_entries().peekable();
+				while let Some((name, nodes)) = slots.next() {
+					let fragment_name = doc.unique.from("render_fragment");
+					let fragment = Fragment::new();
+					fragment.render(doc, fragment_name.clone(), nodes)?;
+
+					self.c_decl
+						.write("\t\t")
+						.write(&to_valid_property(&name))
+						.write(": ")
+						.write(&fragment_name)
+						.write(".bind(this)");
+
+					if slots.peek().is_some() {
+						self.c_decl.write(",\n");
+					} else {
+						self.c_decl.write("\n");
+					}
 				}
 
-				self.decl
-					.write("({ children: [")
-					.write(&children.join(", "))
-					.write("] });\n")
-					.map(node.end);
-			} else {
-				self.decl.write("(").write(");\n").map(node.end);
+				self.c_decl.write("\t},\n");
 			}
 
-			self.render_attributes(&name, node.attributes)?;
+			if !c_attrs.is_empty() {
+				self.c_decl
+					.write("\tattrs: {\n")
+					.append(&format_chunk(c_attrs, 2))
+					.write("\n\t},\n");
+			}
+
+			self.c_decl.write("});\n");
+
+			self.c_decl.map(node.end);
 
 			return Ok(name);
 		}
 
-		let helper = self.doc.helper("element");
-		let name = self.unique.from(&to_valid_ident(&node.tag_name.name));
+		if &node.tag_name.name == "slot" {
+			let slot_name =
+				if let Some(attr) = node.attributes.iter().find(find_static_attr("name")) {
+					match attr {
+						ast::Attribute::Static(attr) => {
+							if let Some(literal) = &attr.value {
+								literal.value.clone()
+							} else {
+								return Err(Error::compiler(
+									attr.start,
+									attr.end,
+									"Attribute must have value.",
+								));
+							}
+						}
+						_ => {
+							return Err(Error::compiler(
+								attr.start(),
+								attr.end(),
+								"Attribute must be static.",
+							))
+						}
+					}
+				} else {
+					DEFAULT_SLOT_NAME.to_owned()
+				};
 
-		self.decl
+			let instance_name = doc.unique.from("fragment");
+
+			self.c_decl
+				.write("let ")
+				.write(&instance_name)
+				.write(" = $self.slots");
+
+			if is_valid_identifier(&slot_name) {
+				self.c_decl.write(".").write(&slot_name);
+			} else {
+				self.c_decl
+					.write("[")
+					.write(&in_string(&slot_name))
+					.write("]");
+			}
+
+			self.c_decl.write(" && $self.slots");
+
+			if is_valid_identifier(&slot_name) {
+				self.c_decl.write(".").write(&slot_name);
+			} else {
+				self.c_decl
+					.write("[")
+					.write(&in_string(&slot_name))
+					.write("]");
+			}
+
+			self.c_decl.write("($self);\n");
+
+			return Ok(instance_name);
+		}
+
+		let tag_name = if node.tag_name.name.starts_with("html:") {
+			&node.tag_name.name[5..]
+		} else {
+			&node.tag_name.name
+		};
+
+		let helper = doc.import("element", None, INTERNAL_MODULE);
+		let name = doc.unique.from(&to_valid_identifier(tag_name));
+
+		self.c_decl
 			.write("let ")
 			.write(&name)
 			.write(" = ")
@@ -176,135 +404,152 @@ impl<'a> Fragment<'a> {
 			.write(&helper)
 			.write("(")
 			.map(node.tag_name.start)
-			.write(&in_string(&node.tag_name.name))
+			.write(&in_string(tag_name))
 			.map(node.tag_name.end)
 			.write(");\n")
 			.map(node.end);
 
-		self.render_attributes(&name, node.attributes)?;
+		for attribute in node.attributes.into_iter() {
+			match &attribute {
+				ast::Attribute::Static(attribute) => {
+					if &attribute.name.name == "slot" {
+						// TODO:
+						continue;
+					}
 
-		let mut children = Vec::new();
+					if &attribute.name.name == "is" {
+						continue;
+					}
+				}
+				_ => {}
+			}
 
-		for child in node.children {
-			children.append(&mut self.render_node(child)?);
+			self.render_attribute(doc, &name, attribute)?;
 		}
 
-		self.insert(&name, "null", &children.join(", "));
+		if node.children.len() > 0 {
+			let mut args = Vec::new();
+
+			for child in node.children {
+				args.append(&mut self.render_node(doc, child)?);
+			}
+
+			self.insert(doc, &name, "null", &args.join(", "));
+		}
 
 		Ok(name)
 	}
 
-	fn render_attributes(
+	fn render_attribute(
 		&mut self,
+		doc: &mut Document,
 		parent: &str,
-		attributes: Vec<ast::Attribute>,
+		attribute: ast::Attribute,
 	) -> Result<(), Error> {
-		for attr in attributes {
-			match attr {
-				ast::Attribute::Static(attr) => {
-					let helper = self.doc.helper("attr");
+		match attribute {
+			ast::Attribute::Static(attr) => {
+				let helper = doc.import("attr", None, INTERNAL_MODULE);
 
-					self.init
+				self.c_init
+					.map(attr.start)
+					.write(&helper)
+					.write("(")
+					.write(parent)
+					.write(", ")
+					.map(attr.name.start)
+					.write(&in_string(&attr.name.name))
+					.map(attr.name.end);
+
+				if let Some(value) = attr.value {
+					self.c_init
+						.write(", ")
+						.map(value.start)
+						.write(&serialize_string_literal(&value))
+						.map(value.end);
+				}
+
+				self.c_init.write(");\n").map(attr.end);
+			}
+			ast::Attribute::Binding(attr) => {
+				if attr.name.name.starts_with("bind:") {
+					let name = &attr.name.name[5..];
+					let helper = doc.import("bind", None, INTERNAL_MODULE);
+
+					let decl = doc.declaration(DeclarationKind::Binder, Some(name));
+
+					if decl.is_none() {
+						return Err(Error::compiler(
+							attr.name.start,
+							attr.name.end,
+							&format!("Undefined binder '{}'.", name),
+						));
+					}
+
+					let decl = decl.unwrap();
+
+					self.c_bind
+						.write(&helper)
+						.write("(")
+						.write(parent)
+						.write(", ")
+						.write(&decl)
+						.write(", this.$computed(() => ")
+						.append(&self.js.serialize(&attr.value))
+						.write("));\n");
+				} else {
+					let helper = doc.import("bind_attr", None, INTERNAL_MODULE);
+
+					self.c_bind
 						.map(attr.start)
 						.write(&helper)
 						.write("(")
 						.write(parent)
 						.write(", ")
-						.map(attr.name.start)
 						.write(&in_string(&attr.name.name))
-						.map(attr.name.end);
-
-					if let Some(value) = attr.value {
-						self.init
-							.write(", ")
-							.map(value.start)
-							.write(&serialize_string_literal(&value))
-							.map(value.end);
-					}
-
-					self.init.write(");\n").map(attr.end);
-				}
-				ast::Attribute::Binding(attr) => {
-					if attr.name.name.starts_with("bind:") {
-						let name = &attr.name.name[5..];
-						let helper = self.doc.helper("bind");
-
-						let decl = self.doc.find_declaration(BINDER_KIND, name);
-
-						if decl.is_none() {
-							return Err(Error::compiler(
-								attr.name.start,
-								attr.name.end,
-								&format!("Undefined binder '{}'.", name),
-							));
-						}
-
-						let decl = decl.unwrap();
-
-						self.bind
-							.write(&helper)
-							.write("(")
-							.write(parent)
-							.write(", ")
-							.write(&decl)
-							.write(", this.$computed(() => ")
-							.append(&self.js.serialize(&attr.value))
-							.write("));\n");
-					} else {
-						let helper = self.doc.helper("bind_attr");
-
-						self.bind
-							.map(attr.start)
-							.write(&helper)
-							.write("(")
-							.write(parent)
-							.write(", ")
-							.write(&in_string(&attr.name.name))
-							.write(", this.$computed(() => ")
-							.append(&self.js.serialize(&attr.value))
-							.write("));\n");
-					}
-				}
-				ast::Attribute::Spread(attr) => {
-					let helper = self.doc.helper("bind_attr_spread");
-
-					self.bind
-						.map(attr.start)
-						.write(&helper)
-						.write("(")
-						.write(parent)
 						.write(", this.$computed(() => ")
 						.append(&self.js.serialize(&attr.value))
 						.write("));\n");
 				}
-				ast::Attribute::ShortBinding(attr) => {
-					let helper = self.doc.helper("bind_attr");
+			}
+			ast::Attribute::Spread(attr) => {
+				let helper = doc.import("bind_attr_spread", None, INTERNAL_MODULE);
 
-					self.bind
-						.map(attr.start)
-						.write(&helper)
-						.write("(")
-						.write(parent)
-						.write(", ")
-						.write(&in_string(&attr.name.name))
-						.write(", this.$computed(() => ")
-						.append(&self.js.serialize(&attr.name.into()))
-						.write("));\n");
-				}
+				self.c_bind
+					.map(attr.start)
+					.write(&helper)
+					.write("(")
+					.write(parent)
+					.write(", this.$computed(() => ")
+					.append(&self.js.serialize(&attr.value))
+					.write("));\n");
+			}
+			ast::Attribute::ShortBinding(attr) => {
+				let helper = doc.import("bind_attr", None, INTERNAL_MODULE);
+
+				self.c_bind
+					.map(attr.start)
+					.write(&helper)
+					.write("(")
+					.write(parent)
+					.write(", ")
+					.write(&in_string(&attr.name.name))
+					.write(", this.$computed(() => ")
+					.append(&self.js.serialize(&attr.name.into()))
+					.write("));\n");
 			}
 		}
 
 		Ok(())
 	}
 
-	fn render_text(&mut self, node: ast::Text) -> Result<String, Error> {
+	fn render_text(&mut self, doc: &mut Document, node: ast::Text) -> Result<String, Error> {
 		let text = join_spaces(&node.content);
 
 		if text == " " {
-			let helper = self.doc.helper("space");
-			let name = self.unique.from("space");
+			let helper = doc.import("space", None, INTERNAL_MODULE);
+			let name = doc.unique.from("space");
 
-			self.decl
+			self.c_decl
 				.write("let ")
 				.write(&name)
 				.write(" = ")
@@ -315,10 +560,10 @@ impl<'a> Fragment<'a> {
 
 			Ok(name)
 		} else {
-			let helper = self.doc.helper("text");
-			let name = self.unique.from("text");
+			let helper = doc.import("text", None, INTERNAL_MODULE);
+			let name = doc.unique.from("text");
 
-			self.decl
+			self.c_decl
 				.write("let ")
 				.write(&name)
 				.write(" = ")
@@ -333,11 +578,15 @@ impl<'a> Fragment<'a> {
 		}
 	}
 
-	fn render_text_binding(&mut self, node: ast::TextBinding) -> Result<String, Error> {
-		let helper = self.doc.helper("text");
-		let name = self.unique.from("text");
+	fn render_text_binding(
+		&mut self,
+		doc: &mut Document,
+		node: ast::TextBinding,
+	) -> Result<String, Error> {
+		let helper = doc.import("text", None, INTERNAL_MODULE);
+		let name = doc.unique.from("text");
 
-		self.decl
+		self.c_decl
 			.write("let ")
 			.write(&name)
 			.write(" = ")
@@ -346,9 +595,9 @@ impl<'a> Fragment<'a> {
 			.write("();\n")
 			.map(node.end);
 
-		let helper = self.doc.helper("bind_text");
+		let helper = doc.import("bind_text", None, INTERNAL_MODULE);
 
-		self.bind
+		self.c_bind
 			.write(&helper)
 			.write("(")
 			.write(&name)
@@ -359,23 +608,29 @@ impl<'a> Fragment<'a> {
 		Ok(name)
 	}
 
-	fn render_flow_control(&mut self, node: ast::FlowControl) -> Result<Vec<String>, Error> {
+	fn render_flow_control(
+		&mut self,
+		doc: &mut Document,
+		node: ast::FlowControl,
+	) -> Result<Vec<String>, Error> {
 		match node {
 			ast::FlowControl::When(node) => {
 				let mut names = Vec::new();
 
-				let fragment_name = self.unique.from("fragment");
-				let render_fragment = self.doc.render_fragment(node.children)?;
+				let instance_name = doc.unique.from("fragment");
+				let fragment_name = doc.unique.from("render_fragment");
+				let fragment = Fragment::new();
+				fragment.render(doc, fragment_name.clone(), node.children)?;
 
-				self.decl
+				self.c_decl
 					.write("let ")
-					.write(&fragment_name)
+					.write(&instance_name)
 					.write(" = ")
-					.write(&render_fragment)
-					.write(".apply(this);\n");
+					.write(&fragment_name)
+					.write(".call(this);\n");
 
-				let bind_when = self.doc.helper("bind_when");
-				let binding_name = self.unique.from("flow");
+				let bind_when = doc.import("bind_when", None, INTERNAL_MODULE);
+				let binding_name = doc.unique.from("flow");
 				names.push(binding_name.clone());
 
 				let mut accessor = Chunk::new();
@@ -385,48 +640,50 @@ impl<'a> Fragment<'a> {
 					.write("))");
 
 				if node.chain.len() > 0 {
-					let accessor_name = self.unique.from("accessor");
+					let accessor_name = doc.unique.from("accessor");
 
-					self.bind
+					self.c_bind
 						.write("\nlet ")
 						.write(&accessor_name)
 						.write(" = ")
 						.append(&accessor)
 						.write(";\n");
 
-					self.bind
+					self.c_bind
 						.write("let ")
 						.write(&binding_name)
 						.write(" = ")
 						.write(&bind_when)
 						.write("(")
-						.write(&fragment_name)
+						.write(&instance_name)
 						.write(", ")
 						.write(&accessor_name)
 						.write("\n");
 
 					for node in node.chain {
-						let fragment_name = self.unique.from("fragment");
-						let render_fragment = self.doc.render_fragment(node.children)?;
+						let instance_name = doc.unique.from("fragment");
+						let fragment_name = doc.unique.from("render_fragment");
+						let fragment = Fragment::new();
+						fragment.render(doc, fragment_name.clone(), node.children)?;
 
-						self.decl
+						self.c_decl
 							.write("let ")
-							.write(&fragment_name)
+							.write(&instance_name)
 							.write(" = ")
-							.write(&render_fragment)
-							.write(".apply(this);\n");
+							.write(&fragment_name)
+							.write(".call(this);\n");
 
-						let computed_not = self.doc.helper("computed_not");
-						let binding_name = self.unique.from("flow");
+						let computed_not = doc.import("computed_not", None, INTERNAL_MODULE);
+						let binding_name = doc.unique.from("flow");
 						names.push(binding_name.clone());
 
-						self.bind
+						self.c_bind
 							.write("let ")
 							.write(&binding_name)
 							.write(" = ")
 							.write(&bind_when)
 							.write("(")
-							.write(&fragment_name)
+							.write(&instance_name)
 							.write(", ")
 							.write(&computed_not)
 							.write("(")
@@ -434,13 +691,13 @@ impl<'a> Fragment<'a> {
 							.write(");\n");
 					}
 				} else {
-					self.bind
+					self.c_bind
 						.write("let ")
 						.write(&binding_name)
 						.write(" = ")
 						.write(&bind_when)
 						.write("(")
-						.write(&fragment_name)
+						.write(&instance_name)
 						.write(", ")
 						.append(&accessor)
 						.write(";\n");
@@ -450,29 +707,30 @@ impl<'a> Fragment<'a> {
 			}
 
 			ast::FlowControl::Each(node) => {
-				let bind_each = self.doc.helper("bind_each");
-				let name = self.unique.from("flow");
+				let bind_each = doc.import("bind_each", None, INTERNAL_MODULE);
+				let name = doc.unique.from("flow");
 
-				let mut frag = Fragment::new(self.doc);
+				let fragment_name = doc.unique.from("render_fragment");
+				let mut fragment = Fragment::new();
 
-				let iterator = frag.unique.ensure(&node.iterator.name);
-				frag.js.local_vars.push(iterator.clone());
+				let iterator = doc.unique.ensure(&node.iterator.name);
+				fragment.js.local_vars.push(iterator.clone());
 
 				let mut attr = Chunk::new();
 				attr.map(node.iterator.start)
 					.write(&iterator)
 					.map(node.iterator.end);
 
-				frag.attr.append(&attr);
-				let render_fragment = frag.render(node.children)?;
+				fragment.c_attr.append(&attr);
+				fragment.render(doc, fragment_name.clone(), node.children)?;
 
-				self.bind
+				self.c_bind
 					.write("let ")
 					.write(&name)
 					.write(" = ")
 					.write(&bind_each)
 					.write("(")
-					.write(&render_fragment)
+					.write(&fragment_name)
 					.write(".bind(this), this.$computed(() => ")
 					.append(&self.js.serialize(&node.iterable))
 					.write("));\n");

@@ -12,9 +12,9 @@ export function createScheduler(tick: Ticker): Scheduler {
 	let flushing = false;
 
 	const flush_ = () => {
-		for (const task of Array.from(queue).slice()) {
-			task();
+		for (const task of Array.from(queue)) {
 			queue.delete(task);
+			task();
 		}
 	};
 

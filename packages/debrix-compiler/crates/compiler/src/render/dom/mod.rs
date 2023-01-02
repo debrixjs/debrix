@@ -1,8 +1,10 @@
 use super::*;
 
+mod component;
 mod document;
 mod fragment;
 
+pub(crate) use component::*;
 pub(crate) use document::*;
 pub(crate) use fragment::*;
 
