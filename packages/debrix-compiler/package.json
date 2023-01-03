@@ -47,9 +47,9 @@
 	},
 	"devDependencies": {
 		"@esbuild-plugins/node-resolve": "^0.1.4",
-		"@types/node": "^18.11.9",
-		"cargo-cp-artifact": "^0.1.6",
-		"esbuild": "^0.15.10",
+		"@types/node": "^18.11.18",
+		"cargo-cp-artifact": "^0.1.7",
+		"esbuild": "^0.16.13",
 		"follow-redirects": "^1.15.2"
 	},
 	"peerDependencies": {
