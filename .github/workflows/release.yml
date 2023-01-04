@@ -19,17 +19,17 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16
-      - run: yarn install --frozen-lockfile
+      - run: npm ci
       - uses: changesets/action@v1
         with:
-          version: yarn run version
+          version: npm run version
           commit: 'chore: version packages'
           title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - if: steps.changesets.outputs.hasChangesets == 'false'
         run:
-          - yarn publish
+          - npm run publish
           - git push --follow-tags
 
   build_compiler:
