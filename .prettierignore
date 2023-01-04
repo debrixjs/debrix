@@ -1,0 +1,17 @@
+packages/debrix-compiler/lib/
+packages/debrix-compiler/node/
+packages/debrix-compiler/wasm/
+packages/debrix-compiler/index.*
+packages/debrix-compiler/types/
+
+packages/debrix-internal/types/
+packages/debrix-internal/index.*
+
+packages/debrix/binders/
+packages/debrix/types/
+packages/debrix/index.*
+
+packages/rollup-plugin-debrix/types/
+packages/rollup-plugin-debrix/index.*
+
+target
