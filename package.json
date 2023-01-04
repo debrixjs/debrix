@@ -10,6 +10,7 @@
 		"lerna": "lerna",
 		"build": "lerna run build",
 		"lint": "eslint --ext .js,.ts . && prettier --check .",
+		"lint-fix": "eslint --fix --ext .js,.ts . && prettier --write .",
 		"test": "lerna run test",
 		"version": "changeset version",
 		"publish": "changeset publish"
