@@ -1,6 +1,7 @@
 {
 	"name": "debrix",
 	"private": true,
+	"repository": "https://github.com/debrixjs/debrix",
 	"license": "MIT",
 	"workspaces": [
 		"packages/*"
@@ -9,13 +10,17 @@
 		"lerna": "lerna",
 		"build": "lerna run build",
 		"lint": "eslint --ext .js,.ts packages/",
-		"test": "lerna run test"
+		"test": "lerna run test",
+		"version": "changeset version",
+		"publish": "changeset publish"
 	},
 	"devDependencies": {
+		"@changesets/cli": "^2.26.0",
 		"@debrix/eslint-config": "^0.1.0",
 		"@typescript-eslint/eslint-plugin": "^5.48.0",
 		"@typescript-eslint/parser": "^5.48.0",
 		"eslint": "^8.31.0",
-		"lerna": "^6.3.0"
+		"lerna": "^6.3.0",
+		"mime": "^3.0.0"
 	}
 }
