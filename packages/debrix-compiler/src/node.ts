@@ -1,4 +1,11 @@
-import { Build, InternalBuildObject, InternalErrorObject, Target, _createError, _validate } from './common';
+import {
+	Build,
+	InternalBuildObject,
+	InternalErrorObject,
+	Target,
+	_createError,
+	_validate,
+} from './common';
 import { Worker } from 'node:worker_threads';
 
 declare const WORKER_URL: string;
@@ -11,14 +18,20 @@ function nextHandle() {
 const worker = new Worker(new URL(WORKER_URL, import.meta.url));
 worker.unref();
 
-export function build(input: string, target: Target = Target.Client): Promise<Build> {
+export function build(
+	input: string,
+	target: Target = Target.Client
+): Promise<Build> {
 	return new Promise<Build>((resolve, reject) => {
 		_validate(input, target);
 
 		const handle = nextHandle();
-		const listener = ([_handle, build, error]: [number, InternalBuildObject | undefined, InternalErrorObject | undefined]) => {
-			if (_handle !== handle)
-				return;
+		const listener = ([_handle, build, error]: [
+			number,
+			InternalBuildObject | undefined,
+			InternalErrorObject | undefined
+		]) => {
+			if (_handle !== handle) return;
 
 			worker.removeListener('message', listener);
 
@@ -34,4 +47,11 @@ export function build(input: string, target: Target = Target.Client): Promise<Bu
 	});
 }
 
-export { type Build, CompilerError, type Error, type Mapping, ParserError, Target } from './common';
+export {
+	type Build,
+	CompilerError,
+	type Error,
+	type Mapping,
+	ParserError,
+	Target,
+} from './common';

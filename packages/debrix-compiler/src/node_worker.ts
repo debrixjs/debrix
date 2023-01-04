@@ -16,15 +16,18 @@ const compiler = require(NATIVE_MODULE_PATH) as typeof import('debrix.node');
 import { parentPort } from 'node:worker_threads';
 import type { InternalBuildObject, InternalErrorObject } from './common';
 
-parentPort!.on('message', ([handle, input, target]: [number, string, number]) => {
-	let build: InternalBuildObject | undefined,
-		error: InternalErrorObject | undefined;
+parentPort!.on(
+	'message',
+	([handle, input, target]: [number, string, number]) => {
+		let build: InternalBuildObject | undefined,
+			error: InternalErrorObject | undefined;
 
-	try {
-		build = compiler.build(input, target);
-	} catch (err) {
-		error = err;
+		try {
+			build = compiler.build(input, target);
+		} catch (err) {
+			error = err;
+		}
+
+		parentPort!.postMessage([handle, build, error]);
 	}
-	
-	parentPort!.postMessage([handle, build, error]);
-});
+);

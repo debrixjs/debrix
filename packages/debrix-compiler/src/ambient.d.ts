@@ -1,7 +1,7 @@
 declare module 'debrix.wasm.lib' {
 	export interface WasmBuildResult {
-		result: any,
-		error: any,
+		result: any;
+		error: any;
 	}
 
 	export function initSync(bytes: unknown): void;

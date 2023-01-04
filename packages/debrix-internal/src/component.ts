@@ -1,5 +1,13 @@
 /* eslint-disable @typescript-eslint/no-dynamic-delete */
-import { Changes, Component as _Component, ComponentAttrs, ComponentOptions as _ComponentOptions, Computed, Model, ViewModel } from 'debrix';
+import {
+	Changes,
+	Component as _Component,
+	ComponentAttrs,
+	ComponentOptions as _ComponentOptions,
+	Computed,
+	Model,
+	ViewModel,
+} from 'debrix';
 import { destroy, detach, insert } from './document';
 import { entries, FRAGMENT, Fragment, hasOwn } from './utils';
 
@@ -8,10 +16,8 @@ function isComputed(value: unknown): value is Computed {
 }
 
 function unwrap<T>(value: T | Computed<T>): T {
-	if (isComputed(value))
-		return value.get();
-	else
-		return value;
+	if (isComputed(value)) return value.get();
+	else return value;
 }
 
 type SelfAttributes = Record<string, string | undefined>;
@@ -19,14 +25,11 @@ type SelfSlots = Readonly<Record<string, () => readonly ChildNode[]>>;
 
 class Self extends Model {
 	/** @internal */
-	[family: symbol]: unknown
+	[family: symbol]: unknown;
 
 	readonly attrs: SelfAttributes = {};
 
-	constructor(
-		attrs: ComponentAttrs = {},
-		readonly slots: SelfSlots = {}
-	) {
+	constructor(attrs: ComponentAttrs = {}, readonly slots: SelfSlots = {}) {
 		super();
 
 		const prev: Record<string, string | undefined> = {};
@@ -45,8 +48,7 @@ class Self extends Model {
 
 			if (changes) {
 				for (const [key] of [...changes.additions, ...changes.modifications]) {
-					if (!hasOwn(prev, key))
-						prev[key] = unwrap(this.attrs[key]);
+					if (!hasOwn(prev, key)) prev[key] = unwrap(this.attrs[key]);
 
 					this.attrs[key] = newValue[key];
 				}
@@ -60,7 +62,10 @@ class Self extends Model {
 					}
 				}
 			} else {
-				for (const key of new Set([...Object.keys(oldValue), ...Object.keys(newValue)])) {
+				for (const key of new Set([
+					...Object.keys(oldValue),
+					...Object.keys(newValue),
+				])) {
 					const inOld = hasOwn(oldValue, key);
 					const inNew = hasOwn(newValue, key);
 
@@ -89,8 +94,7 @@ class Self extends Model {
 		}
 
 		for (const [key, value] of entries(attrs)) {
-			if (key === '_')
-				continue;
+			if (key === '_') continue;
 
 			if (typeof value === 'string') {
 				this.attrs[key] = value;
@@ -108,11 +112,14 @@ class Self extends Model {
 	}
 }
 
-export interface ComponentOptions<T extends ViewModel> extends _ComponentOptions<T> {
-	__family?: T | false
+export interface ComponentOptions<T extends ViewModel>
+	extends _ComponentOptions<T> {
+	__family?: T | false;
 }
 
-export class Component<E extends Element, T extends ViewModel> implements _Component<T>, Fragment {
+export class Component<E extends Element, T extends ViewModel>
+	implements _Component<T>, Fragment
+{
 	/** @internal */
 	readonly [FRAGMENT] = true;
 
@@ -124,14 +131,14 @@ export class Component<E extends Element, T extends ViewModel> implements _Compo
 
 	constructor(options?: ComponentOptions<T>) {
 		const constructor = this.constructor as {
-			new(): Component<E, T>
-			prototype: Component<E, T>
-			readonly render: (self: Self) => E
+			new (): Component<E, T>;
+			prototype: Component<E, T>;
+			readonly render: (self: Self) => E;
 			readonly model?: {
-				new(): T,
-				prototype: T
-			}
-			readonly __family?: symbol
+				new (): T;
+				prototype: T;
+			};
+			readonly __family?: symbol;
 		};
 
 		if (options?.data) {
@@ -151,8 +158,7 @@ export class Component<E extends Element, T extends ViewModel> implements _Compo
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 			(self as any).$e.pipe((this._data as any).$e);
 
-		if (constructor.__family)
-			self[constructor.__family] = this._data;
+		if (constructor.__family) self[constructor.__family] = this._data;
 
 		this._element = constructor.render.call(this._data, self);
 	}

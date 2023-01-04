@@ -9,12 +9,12 @@ const {
 	GITHUB_TOKEN,
 	INPUT_REPOSITORY: REPOSITORY,
 	INPUT_FILES: FILES,
-	INPUT_RELEASE_ID: RELEASE_ID
+	INPUT_RELEASE_ID: RELEASE_ID,
 } = process.env;
 
-if (!GITHUB_TOKEN) panic('Missing GITHUB_TOKEN!')
-if (!REPOSITORY) panic('Missing input \'repository\'!')
-if (!FILES) panic('Missing input \'files\'!')
+if (!GITHUB_TOKEN) panic('Missing GITHUB_TOKEN!');
+if (!REPOSITORY) panic("Missing input 'repository'!");
+if (!FILES) panic("Missing input 'files'!");
 
 const [REPOSITORY_OWNER, REPOSITORY_NAME] = REPOSITORY.split('/');
 
@@ -23,14 +23,14 @@ const [REPOSITORY_OWNER, REPOSITORY_NAME] = REPOSITORY.split('/');
  * @param  {...string | number | boolean} args
  */
 function url(template, ...args) {
-	return String.raw(template, ...args.map(arg => encodeURIComponent(arg)));
+	return String.raw(template, ...args.map((arg) => encodeURIComponent(arg)));
 }
 
 /**
  * @param {string} path
  */
 function getMimeType(path) {
-	return mime.getType(path) || "application/octet-stream";
+	return mime.getType(path) || 'application/octet-stream';
 }
 
 /**
@@ -43,21 +43,21 @@ function panic(...data) {
 }
 
 /**
- * @param {string} s 
+ * @param {string} s
  * @returns {string[]}
  */
 function parseList(s) {
 	/** @type {any} */
 	const lines = s.split(/\r?\n/);
 	return lines.reduce(
-	  (acc, line) =>
-		acc
-		  .concat(line.split(","))
-		  .filter((pat) => pat)
-		  .map((pat) => pat.trim()),
-	  []
+		(acc, line) =>
+			acc
+				.concat(line.split(','))
+				.filter((pat) => pat)
+				.map((pat) => pat.trim()),
+		[]
 	);
-  };
+}
 
 /**
  * @param {string} path
@@ -71,17 +71,19 @@ async function upload(path) {
 	const endpoint = url`https://uploads.github.com/repos/${REPOSITORY_OWNER}/${REPOSITORY_NAME}/releases/${RELEASE_ID}/assets?name=${name}`;
 	const resp = await fetch(endpoint, {
 		headers: {
-			"content-length": `${size}`,
-			"content-type": mime,
+			'content-length': `${size}`,
+			'content-type': mime,
 			authorization: `token ${GITHUB_TOKEN}`,
 		},
-		method: "POST",
+		method: 'POST',
 		body,
 	});
 	const json = await resp.json();
 	if (resp.status !== 201) {
 		throw new Error(
-			`Failed to upload release asset ${name}. received status code ${resp.status}\n${json.message}\n${JSON.stringify(json.errors)}`
+			`Failed to upload release asset ${name}. received status code ${
+				resp.status
+			}\n${json.message}\n${JSON.stringify(json.errors)}`
 		);
 	}
 }

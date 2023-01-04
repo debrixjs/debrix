@@ -4,15 +4,15 @@ import { Plugin } from 'rollup';
 import { encode, SourceMapMappings, SourceMapLine } from 'sourcemap-codec';
 
 export interface DebrixOptions {
-	include?: FilterPattern
-	exclude?: FilterPattern
-	target?: Target
+	include?: FilterPattern;
+	exclude?: FilterPattern;
+	target?: Target;
 
 	/**
 	 * Wether to resolve all paths starting with "self.". Only works in debrix components.
-	 * 
+	 *
 	 * @default true
-	 * 
+	 *
 	 * @example
 	 * ```debrix
 	 * using model from 'self.model.ts'
@@ -20,24 +20,25 @@ export interface DebrixOptions {
 	 * using model from './my-component.model.ts'
 	 * ```
 	 */
-	resolveSelf?: boolean
+	resolveSelf?: boolean;
 }
 
-function toMappings(source: string, mappings: DebrixMapping[]): SourceMapMappings {
+function toMappings(
+	source: string,
+	mappings: DebrixMapping[]
+): SourceMapMappings {
 	const chars = Array.from(source);
 	const newlines: number[] = [];
 
 	for (let index = 0; index < chars.length; index++) {
-		if (chars[index] === '\n')
-			newlines.push(index);
+		if (chars[index] === '\n') newlines.push(index);
 	}
 
 	const mappingLines = new Map<number, SourceMapLine>();
 	let length = 0;
 
 	const getMappingLine = (line: number) => {
-		if (mappingLines.has(line))
-			return mappingLines.get(line)!;
+		if (mappingLines.has(line)) return mappingLines.get(line)!;
 
 		length = Math.max(length, line);
 
@@ -47,16 +48,14 @@ function toMappings(source: string, mappings: DebrixMapping[]): SourceMapMapping
 	};
 
 	function offsetToLineAndColumn(offset: number): [number, number] {
-		if (offset > chars.length)
-			throw new Error('invalid mapping');
+		if (offset > chars.length) throw new Error('invalid mapping');
 
-		let line = 0, column = 0;
+		let line = 0,
+			column = 0;
 
 		for (let index = 0; index < offset; index++) {
-			if (chars[index] === '\n')
-				++line;
-			else
-				++column;
+			if (chars[index] === '\n') ++line;
+			else ++column;
 		}
 
 		return [line, column];
@@ -68,32 +67,29 @@ function toMappings(source: string, mappings: DebrixMapping[]): SourceMapMapping
 		getMappingLine(to[0]).push([to[1], 0, ...from]);
 	}
 
-	return Array.from(
-		{ length },
-		(_, i) => getMappingLine(i)
-	);
+	return Array.from({ length }, (_, i) => getMappingLine(i));
 }
 
 export default function debrix(options: DebrixOptions = {}): Plugin {
-	const filter = createFilter(options.include ?? /\.(debr)?ix$/, options.exclude);
+	const filter = createFilter(
+		options.include ?? /\.(debr)?ix$/,
+		options.exclude
+	);
 
 	return {
 		name: 'debrix',
 
-		...options.resolveSelf !== false && {
+		...(options.resolveSelf !== false && {
 			resolveId(source, importer, options) {
-				if (options.isEntry || importer === undefined)
-					return null;
+				if (options.isEntry || importer === undefined) return null;
 
-				if (!filter(importer))
-					return null;
-	
-				if (!source.startsWith('self.'))
-					return null;
-	
+				if (!filter(importer)) return null;
+
+				if (!source.startsWith('self.')) return null;
+
 				return importer.replace(/\.[^./]+$/, '') + source.slice(4);
 			},
-		},
+		}),
 
 		async transform(code, id) {
 			if (!filter(id)) return;
@@ -108,9 +104,9 @@ export default function debrix(options: DebrixOptions = {}): Plugin {
 					version: 3,
 					sources: [id],
 					names: [],
-					mappings: mappingsEncoded
-				}
+					mappings: mappingsEncoded,
+				},
 			};
-		}
+		},
 	};
 }

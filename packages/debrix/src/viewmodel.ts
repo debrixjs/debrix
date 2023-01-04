@@ -1,9 +1,14 @@
-import { Model, ModelOptions, Subscription, SubscriptionListener } from './model';
+import {
+	Model,
+	ModelOptions,
+	Subscription,
+	SubscriptionListener,
+} from './model';
 import { createFrameTicker } from './scheduler';
 
 export interface Computed<T = unknown> {
-	get(): T
-	dispose(): void
+	get(): T;
+	dispose(): void;
 	observe(listener: SubscriptionListener<T>): Subscription;
 }
 
@@ -26,16 +31,14 @@ export abstract class ViewModel extends Model {
 					dirty = false;
 
 					let next!: T;
-					const observe = this.$magic(() => next = get());
+					const observe = this.$magic(() => (next = get()));
 
-					if (next !== value)
-						value = next;
+					if (next !== value) value = next;
 
 					revoke = observe(() => {
 						dirty = true;
 
-						for (const listener of listeners)
-							listener();
+						for (const listener of listeners) listener();
 					});
 				}
 
@@ -47,7 +50,7 @@ export abstract class ViewModel extends Model {
 				return {
 					revoke() {
 						listeners.delete(listener);
-					}
+					},
 				};
 			},
 

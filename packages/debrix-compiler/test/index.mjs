@@ -12,13 +12,13 @@ const document = `
 let nodeResult, wasmResult;
 
 await test('Node dist compiles document', async () => {
-	const { source, mappings } = nodeResult = await node.build(document);
+	const { source, mappings } = (nodeResult = await node.build(document));
 	assert(source.length > 0, 'source is expected to have length');
 	assert(mappings.length > 0, 'mappings is expected to have length');
 });
 
 await test('WASM dist compiles document', async () => {
-	const { source, mappings } = wasmResult = await wasm.build(document);
+	const { source, mappings } = (wasmResult = await wasm.build(document));
 	assert(source.length > 0, 'source is expected to have length');
 	assert(mappings.length > 0, 'mappings is expected to have length');
 });
