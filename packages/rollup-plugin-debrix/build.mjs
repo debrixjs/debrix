@@ -8,17 +8,15 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 
 /**
- * @param {string} command 
+ * @param {string} command
  * @param {import('node:child_process').ExecOptions} [options]
  * @returns {Promise<{ stdout: any, stderr: any }>}
  */
 function exec(command, options) {
 	return new Promise((resolve, reject) => {
 		const proc = _exec(command, options, (err, stdout, stderr) => {
-			if (err)
-				reject(err);
-			else
-				resolve({ stdout, stderr });
+			if (err) reject(err);
+			else resolve({ stdout, stderr });
 		});
 
 		proc.stdout?.pipe(process.stdout);
@@ -27,7 +25,7 @@ function exec(command, options) {
 }
 
 /**
- * @param {unknown} value 
+ * @param {unknown} value
  * @returns {value is string}
  */
 function isString(value) {
@@ -35,27 +33,34 @@ function isString(value) {
 }
 
 await Promise.all([
-	exec([
-		'node',
-		require.resolve('typescript/lib/tsc.js'),
-		'--declaration',
-		'--emitDeclarationOnly',
-		'--outDir types'
-	].filter(isString).join(' ')),
+	exec(
+		[
+			'node',
+			require.resolve('typescript/lib/tsc.js'),
+			'--declaration',
+			'--emitDeclarationOnly',
+			'--outDir types',
+		]
+			.filter(isString)
+			.join(' ')
+	),
 
 	esbuild.build({
 		entryPoints: ['./src/plugin.ts'],
 		outfile: './index.js',
 		format: 'cjs',
-		platform: 'node'
+		platform: 'node',
 	}),
 
 	esbuild.build({
 		entryPoints: ['./src/plugin.ts'],
 		outfile: './index.mjs',
 		format: 'esm',
-		platform: 'node'
+		platform: 'node',
 	}),
 
-	writeFile('./index.d.ts', 'export * from \'./types/plugin\';\nexport { default } from \'./types/plugin\';\n'),
+	writeFile(
+		'./index.d.ts',
+		"export * from './types/plugin';\nexport { default } from './types/plugin';\n"
+	),
 ]);

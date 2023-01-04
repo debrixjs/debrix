@@ -18,15 +18,13 @@ async function exists(filename) {
 		await access(filename);
 		return true;
 	} catch (err) {
-		if (err.code === 'ENOENT')
-			return false;
+		if (err.code === 'ENOENT') return false;
 		throw err;
 	}
 }
 
 function get_binary_filename() {
-	if (process.platform === 'win32')
-		return 'bin/debrix.exe';
+	if (process.platform === 'win32') return 'bin/debrix.exe';
 	return 'bin/debrix';
 }
 
@@ -34,10 +32,14 @@ function get_binary_download(version) {
 	// Release asset name is specified in the release workflow.
 	const asset_suffix = (() => {
 		switch (process.platform) {
-			case 'linux': return 'linux-x86_64';
-			case 'darwin': return 'darwin-x86_64';
-			case 'win32': return 'windows-x86_64.exe';
-			default: unreachable();
+			case 'linux':
+				return 'linux-x86_64';
+			case 'darwin':
+				return 'darwin-x86_64';
+			case 'win32':
+				return 'windows-x86_64.exe';
+			default:
+				unreachable();
 		}
 	})();
 
@@ -46,28 +48,40 @@ function get_binary_download(version) {
 
 function get_releases() {
 	return new Promise((resolve, reject) => {
-		https.request('https://api.github.com/repos/debrix/compiler/releases', {
-			headers: {
-				Accept: 'application/vnd.github.v3+json',
-				'User-Agent': 'DEBRIXC'
-			}
-		}, (response) => {
-			response.on('error', reject);
+		https
+			.request(
+				'https://api.github.com/repos/debrix/compiler/releases',
+				{
+					headers: {
+						Accept: 'application/vnd.github.v3+json',
+						'User-Agent': 'DEBRIXC',
+					},
+				},
+				(response) => {
+					response.on('error', reject);
 
-			if (!(response.statusCode && response.statusCode >= 200 && response.statusCode < 300)) {
-				console.error(`\n${PREFIX} ERROR: Unable to fetch releases (${response.statusCode}). Please submit an issue at https://github.com/debrix/compiler/issues/new.`);
-				return;
-			}
+					if (
+						!(
+							response.statusCode &&
+							response.statusCode >= 200 &&
+							response.statusCode < 300
+						)
+					) {
+						console.error(
+							`\n${PREFIX} ERROR: Unable to fetch releases (${response.statusCode}). Please submit an issue at https://github.com/debrix/compiler/issues/new.`
+						);
+						return;
+					}
 
-			let data = '';
-			response.on('data', chunk => data += chunk.toString());
-			response.on('close', () =>
-				resolve(
-					JSON.parse(data)
-						.filter(release => release.assets.length > 0)
-				)
-			);
-		})
+					let data = '';
+					response.on('data', (chunk) => (data += chunk.toString()));
+					response.on('close', () =>
+						resolve(
+							JSON.parse(data).filter((release) => release.assets.length > 0)
+						)
+					);
+				}
+			)
 			.on('error', reject)
 			.end();
 	});
@@ -75,47 +89,41 @@ function get_releases() {
 
 async function get_version(input) {
 	let match;
-	if (/^([0-9]+)\.([0-9]+)\.([0-9]+)$/.test(input)) /* exact */ {
-		return input;
+	if (/^([0-9]+)\.([0-9]+)\.([0-9]+)$/.test(input)) {
+		/* exact */ return input;
 	} else {
-		if (input === 'latest' || input === '*' || input === 'x') /* next stable version*/ {
-			const releases = await get_releases();
-			const release = releases.find(release => !release.prerelease);
-			if (release)
-				return release.tag_name;
-			else
-				return undefined;
-		} else if (input === 'next') /* next version */ {
-			const releases = await get_releases();
+		if (input === 'latest' || input === '*' || input === 'x') {
+			/* next stable version*/ const releases = await get_releases();
+			const release = releases.find((release) => !release.prerelease);
+			if (release) return release.tag_name;
+			else return undefined;
+		} else if (input === 'next') {
+			/* next version */ const releases = await get_releases();
 			return releases[0].tag_name;
 		} else if (
-			(match = /^~([0-9]+)\.([0-9]+)\.[0-9]+$/.exec(input))
-			|| (match = /^([0-9]+)\.([0-9]+)(?:\.x)?$/.exec(input))
-		) /* patch */ {
-			const [major, minor] = match.slice(1);
+			(match = /^~([0-9]+)\.([0-9]+)\.[0-9]+$/.exec(input)) ||
+			(match = /^([0-9]+)\.([0-9]+)(?:\.x)?$/.exec(input))
+		) {
+			/* patch */ const [major, minor] = match.slice(1);
 			const releases = await get_releases();
-			const release = releases.find(release =>
-				release.tag_name.startsWith(`${major}.${minor}`)
-				&& !release.prerelease
+			const release = releases.find(
+				(release) =>
+					release.tag_name.startsWith(`${major}.${minor}`) &&
+					!release.prerelease
 			);
-			if (release)
-				return release.tag_name;
-			else
-				return undefined;
+			if (release) return release.tag_name;
+			else return undefined;
 		} else if (
-			(match = /^\^([0-9]+)\.([0-9]+)\.[0-9]+$/.exec(input))
-			|| (match = /([0-9]+)(?:\.x)?/.exec(input))
-		) /* minor */ {
-			const [major] = match.slice(1);
+			(match = /^\^([0-9]+)\.([0-9]+)\.[0-9]+$/.exec(input)) ||
+			(match = /([0-9]+)(?:\.x)?/.exec(input))
+		) {
+			/* minor */ const [major] = match.slice(1);
 			const releases = await get_releases();
-			const release = releases.find(release =>
-				release.tag_name.startsWith(major)
-				&& !release.prerelease
+			const release = releases.find(
+				(release) => release.tag_name.startsWith(major) && !release.prerelease
 			);
-			if (release)
-				return release.tag_name;
-			else
-				return undefined;
+			if (release) return release.tag_name;
+			else return undefined;
 		} else {
 			// console.error(`${PREFIX} ERROR: Invalid version syntax ("${input}").\n`);
 			// process.exit(1);
@@ -129,8 +137,7 @@ function format_version(version) {
 }
 
 async function get_input_version() {
-	if (process.env.DEBRIXC_VERSION)
-		return process.env.DEBRIXC_VERSION;
+	if (process.env.DEBRIXC_VERSION) return process.env.DEBRIXC_VERSION;
 
 	const pkg = await find_package(process.cwd());
 	if (pkg && pkg.config && pkg.config['debrix-version'])
@@ -142,8 +149,7 @@ async function get_input_version() {
 async function find_package(dir) {
 	const path = resolve(dir, 'package.json');
 
-	if (await exists(path))
-		return JSON.parse(await readFile(path, 'utf-8'));
+	if (await exists(path)) return JSON.parse(await readFile(path, 'utf-8'));
 
 	let next;
 	if ((next = resolve(dir, '..')) !== dir) {
@@ -152,21 +158,27 @@ async function find_package(dir) {
 }
 
 if (process.env.DEBRIXC_NO_INSTALL) {
-	console.log(`${PREFIX} NOTE: Enviroment variable DEBRIXC_NO_INSTALL was set. This will cause the installer to always exit.`);
+	console.log(
+		`${PREFIX} NOTE: Enviroment variable DEBRIXC_NO_INSTALL was set. This will cause the installer to always exit.`
+	);
 }
 
 if (process.env.DEBRIXC_NO_CACHE) {
-	console.log(`${PREFIX} NOTE: Enviroment variable DEBRIXC_NO_CACHE was set. This will cause the installer to always install the binary, whether or not the binary is already installed.`);
+	console.log(
+		`${PREFIX} NOTE: Enviroment variable DEBRIXC_NO_CACHE was set. This will cause the installer to always install the binary, whether or not the binary is already installed.`
+	);
 }
 
 if (process.env.DEBRIXC_VERSION) {
-	console.log(`${PREFIX} NOTE: Enviroment variable DEBRIXC_VERSION was set. This will cause the installer to try install the version specified in the variable.`);
+	console.log(
+		`${PREFIX} NOTE: Enviroment variable DEBRIXC_VERSION was set. This will cause the installer to try install the version specified in the variable.`
+	);
 }
 
 if (
-	process.env.DEBRIXC_NO_INSTALL
-	|| process.env.DEBRIXC_NO_CACHE
-	|| process.env.DEBRIXC_VERSION
+	process.env.DEBRIXC_NO_INSTALL ||
+	process.env.DEBRIXC_NO_CACHE ||
+	process.env.DEBRIXC_VERSION
 ) {
 	console.log('');
 }
@@ -178,7 +190,9 @@ if (process.env.DEBRIXC_NO_INSTALL) {
 
 const SUPPORTED_PLATFORMS = new Set(['darwin', 'linux', 'win32']);
 if (!SUPPORTED_PLATFORMS.has(process.platform)) {
-	console.error(`${PREFIX} ERROR: Build for current platform (${process.platform}) is unavailable.\n`);
+	console.error(
+		`${PREFIX} ERROR: Build for current platform (${process.platform}) is unavailable.\n`
+	);
 	process.exit(1);
 }
 
@@ -189,10 +203,10 @@ const binary_filename = get_binary_filename();
 
 if (await exists('bin')) {
 	if (
-		!process.env.DEBRIXC_NO_CACHE
-		&& await exists('bin/version.txt')
-		&& await exists(binary_filename)
-		&& await readFile('bin/version.txt', 'utf-8') === version
+		!process.env.DEBRIXC_NO_CACHE &&
+		(await exists('bin/version.txt')) &&
+		(await exists(binary_filename)) &&
+		(await readFile('bin/version.txt', 'utf-8')) === version
 	) {
 		// console.log(`${PREFIX} Binary is already installed. Skipping installation... `);
 		process.exit(0);
@@ -209,8 +223,16 @@ process.stdout.write(`${PREFIX} Downloading binary ${formatted_version}...`);
 /** @type {Promise<void>} */
 const download = new Promise((resolve, reject) => {
 	const request = https.request(binary_download, (response) => {
-		if (!(response.statusCode && response.statusCode >= 200 && response.statusCode < 300)) {
-			console.error(`\n${PREFIX} ERROR: Unable to download binary from "${binary_download}" (${response.statusCode}).\n`);
+		if (
+			!(
+				response.statusCode &&
+				response.statusCode >= 200 &&
+				response.statusCode < 300
+			)
+		) {
+			console.error(
+				`\n${PREFIX} ERROR: Unable to download binary from "${binary_download}" (${response.statusCode}).\n`
+			);
 			process.exit(1);
 		}
 
@@ -231,10 +253,14 @@ const download = new Promise((resolve, reject) => {
 
 			process.stdout.write('\x1b[3D (0%)...');
 
-			response.on('data', chunk => {
+			response.on('data', (chunk) => {
 				currentLength += chunk.length;
-				const progress = (currentLength / length * 100).toFixed(0);
-				process.stdout.write(`\x1b[${prevProgress.length + 5}D${progress}${prevProgress.length === progress.length ? '\x1b[5C' : '%)...'}`);
+				const progress = ((currentLength / length) * 100).toFixed(0);
+				process.stdout.write(
+					`\x1b[${prevProgress.length + 5}D${progress}${
+						prevProgress.length === progress.length ? '\x1b[5C' : '%)...'
+					}`
+				);
 				prevProgress = progress;
 				binary_dest.write(chunk);
 			});
@@ -242,7 +268,9 @@ const download = new Promise((resolve, reject) => {
 			response.pipe(binary_dest);
 		}
 	});
-	request.on('error', err => { throw err; });
+	request.on('error', (err) => {
+		throw err;
+	});
 	request.end();
 });
 

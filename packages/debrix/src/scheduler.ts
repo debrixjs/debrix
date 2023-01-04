@@ -1,8 +1,8 @@
 export type Task = (...args: any) => any;
 
 export interface Scheduler {
-	flush_(this: void): void
-	enqueue_(this: void, task: Task): void
+	flush_(this: void): void;
+	enqueue_(this: void, task: Task): void;
 }
 
 export type Ticker = (callback: () => void) => void;
@@ -32,7 +32,7 @@ export function createScheduler(tick: Ticker): Scheduler {
 					flush_();
 				});
 			}
-		}
+		},
 	} as Scheduler;
 }
 

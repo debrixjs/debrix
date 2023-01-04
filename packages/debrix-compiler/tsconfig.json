@@ -4,7 +4,7 @@
 	"compilerOptions": {
 		"module": "ESNext",
 		"target": "ESNext",
-        "lib": ["ESNext", "DOM"],
+		"lib": ["ESNext", "DOM"],
 		"types": ["node"],
 		"allowSyntheticDefaultImports": true,
 		"rootDir": "src",

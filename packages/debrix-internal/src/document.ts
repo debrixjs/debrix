@@ -22,7 +22,7 @@ export function attr(element: Element, name: string, value?: string): void {
 
 /**
  * Inserts nodes into element.
- * 
+ *
  * @param target The target/parent element.
  * @param previous The node previous to the new nodes.
  * @param nodes The nodes to be inserted.
@@ -50,7 +50,7 @@ export function insert(
 
 /**
  * Detaches, without deleting, nodes from element.
- * 
+ *
  * @param target The target/parent element.
  * @param nodes The nodes to be detached.
  */
@@ -58,8 +58,7 @@ export function detach(
 	target: ParentNode,
 	...nodes: readonly NodeLike<ChildNode>[]
 ) {
-	if (!nodes.length)
-		return null;
+	if (!nodes.length) return null;
 
 	for (const node of nodes) {
 		if (isFragment(node)) {

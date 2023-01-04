@@ -1,14 +1,24 @@
-import { createMicroTicker, createScheduler, Scheduler, Task, Ticker } from './scheduler';
+import {
+	createMicroTicker,
+	createScheduler,
+	Scheduler,
+	Task,
+	Ticker,
+} from './scheduler';
 
 export type Diff = [name: string, diff: Diff][];
 
 export interface Changes {
-	additions: Diff
-	modifications: Diff
-	deletions: Diff
+	additions: Diff;
+	modifications: Diff;
+	deletions: Diff;
 }
 
-export type SubscriptionListener<T = unknown> = (newValue?: T, oldValue?: T, changes?: Changes) => void;
+export type SubscriptionListener<T = unknown> = (
+	newValue?: T,
+	oldValue?: T,
+	changes?: Changes
+) => void;
 
 export interface Subscription {
 	revoke(): void;
@@ -33,7 +43,7 @@ function createChain(...links: readonly Link[]): Chain {
 }
 
 function attachLink(chain: Chain | undefined, link: Link): Chain {
-	return createChain(...chain ?? [], link);
+	return createChain(...(chain ?? []), link);
 }
 
 function lastLinkOf(chain: Chain): Link {
@@ -52,41 +62,46 @@ function isLink(value: unknown): value is Link {
 //#endregion link
 
 export interface Reference<T = unknown> {
-	get(): T
-	set(value: T): void
+	get(): T;
+	set(value: T): void;
 	observe(listener: SubscriptionListener<T>): Subscription;
 }
 
 export interface ModelOptions {
-	ticker?: Ticker
+	ticker?: Ticker;
 }
 
 enum EventType {
 	Get,
-	Modify
+	Modify,
 }
 
 interface Event2<T = unknown> {
-	readonly type: EventType
-	readonly chain: Chain,
-	readonly oldValue?: T,
-	readonly newValue?: T,
-	readonly changes?: Changes
+	readonly type: EventType;
+	readonly chain: Chain;
+	readonly oldValue?: T;
+	readonly newValue?: T;
+	readonly changes?: Changes;
 }
 
 interface EventFilter {
-	readonly type?: EventType
-	readonly link?: Link | readonly Link[],
+	readonly type?: EventType;
+	readonly link?: Link | readonly Link[];
 }
 
 interface Events {
-	emit(event: Event2): void
-	on<T = unknown>(listener: (event: Event2<T>) => void, filter?: EventFilter): () => void
-	pipe(to: Events): void
+	emit(event: Event2): void;
+	on<T = unknown>(
+		listener: (event: Event2<T>) => void,
+		filter?: EventFilter
+	): () => void;
+	pipe(to: Events): void;
 }
 
 function createEvents(): Events {
-	const listeners = new Set<readonly [(event: Event2<any>) => void, EventFilter | undefined]>();
+	const listeners = new Set<
+		readonly [(event: Event2<any>) => void, EventFilter | undefined]
+	>();
 	const copy = new Set<Events>();
 
 	return {
@@ -97,22 +112,20 @@ function createEvents(): Events {
 					if (filter.link) {
 						const link = lastLinkOf(event.chain);
 						if (
-							isLink(filter.link) ?
-								!isEqualLink(link, filter.link) :
-								!filter.link.some(f => isEqualLink(link, f))
+							isLink(filter.link)
+								? !isEqualLink(link, filter.link)
+								: !filter.link.some((f) => isEqualLink(link, f))
 						)
 							continue;
 					}
 
-					if (filter.type && event.type !== filter.type)
-						continue;
+					if (filter.type && event.type !== filter.type) continue;
 				}
 
 				listener(event);
 			}
 
-			for (const events of copy)
-				events.emit(event);
+			for (const events of copy) events.emit(event);
 		},
 
 		pipe(to: Events) {
@@ -126,7 +139,7 @@ function createEvents(): Events {
 			return () => {
 				listeners.delete(value);
 			};
-		}
+		},
 	};
 }
 
@@ -137,23 +150,21 @@ export function attach(target: Model, property: PropertyKey): void;
 export function attach(target: unknown, property: PropertyKey): void {
 	let set: Set<PropertyKey> | undefined;
 
-	if (set = ATTACH.get(target as typeof Model))
-		set.add(property);
-	else
-		ATTACH.set(target as typeof Model, new Set([property]));
+	if ((set = ATTACH.get(target as typeof Model))) set.add(property);
+	else ATTACH.set(target as typeof Model, new Set([property]));
 
 	ignore(target as Model, property);
 }
 
-export function extend(extender: Extender): (target: Model, property: PropertyKey) => void {
+export function extend(
+	extender: Extender
+): (target: Model, property: PropertyKey) => void {
 	return (target: unknown, property: PropertyKey): void => {
 		let map: Map<PropertyKey, Extender> | undefined;
 
-		if (map = EXTENDERS.get(target as typeof Model)) {
-			if (map.has(property))
-				throw new Error('can only extend once');
-			else
-				map.set(property, extender);
+		if ((map = EXTENDERS.get(target as typeof Model))) {
+			if (map.has(property)) throw new Error('can only extend once');
+			else map.set(property, extender);
 		} else {
 			EXTENDERS.set(target as typeof Model, new Map([[property, extender]]));
 		}
@@ -161,7 +172,7 @@ export function extend(extender: Extender): (target: Model, property: PropertyKe
 }
 
 export function ignore(...args: [target: Model, property: PropertyKey]): void {
-	extend(() => { })(...args);
+	extend(() => {})(...args);
 }
 
 export abstract class Model {
@@ -180,10 +191,9 @@ export abstract class Model {
 		if (dedup) {
 			let set: Set<symbol | string> | undefined;
 
-			if (this.$q.size === 0)
-				this.$s.enqueue_(() => this.$q.clear());
+			if (this.$q.size === 0) this.$s.enqueue_(() => this.$q.clear());
 
-			if (set = this.$q.get(dedup[0])) {
+			if ((set = this.$q.get(dedup[0]))) {
 				if (set.has(dedup[1])) return;
 				else set.add(dedup[1]);
 			} else {
@@ -204,9 +214,12 @@ export abstract class Model {
 
 	/** @internal */
 	/* #__PURE__ */
-	protected $magic(callback: () => void): (listener: () => void) => (() => void) {
+	protected $magic(callback: () => void): (listener: () => void) => () => void {
 		const filter: Link[] = [];
-		const dispose = this.$e.on((event) => filter.push(lastLinkOf(event.chain)), { type: EventType.Get });
+		const dispose = this.$e.on(
+			(event) => filter.push(lastLinkOf(event.chain)),
+			{ type: EventType.Get }
+		);
 
 		callback();
 		dispose();
@@ -217,10 +230,16 @@ export abstract class Model {
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	protected $observe<T>(target: T, listener: SubscriptionListener<T>): Subscription;
+	protected $observe<T>(
+		target: T,
+		listener: SubscriptionListener<T>
+	): Subscription;
 	protected $observe(link: Link, listener: SubscriptionListener): Subscription {
 		return {
-			revoke: this.$e.on((event) => listener(event.newValue, event.oldValue, event.changes), { type: EventType.Modify, link })
+			revoke: this.$e.on(
+				(event) => listener(event.newValue, event.oldValue, event.changes),
+				{ type: EventType.Modify, link }
+			),
 		};
 	}
 
@@ -248,7 +267,9 @@ export abstract class Model {
 		this.$s = createScheduler(this.$ticker);
 
 		const attach = ATTACH.get(Object.getPrototypeOf(this) as typeof Model);
-		const extenders = EXTENDERS.get(Object.getPrototypeOf(this) as typeof Model);
+		const extenders = EXTENDERS.get(
+			Object.getPrototypeOf(this) as typeof Model
+		);
 
 		const extend = <T extends object>(object: T, chain?: Chain): T => {
 			const isRoot = !chain;
@@ -257,12 +278,16 @@ export abstract class Model {
 			let silent = false;
 			const _compted = new WeakMap<object, () => unknown>();
 
-			const asComputed = (target: object, key: string | symbol, receiver: unknown, descriptior: PropertyDescriptor): unknown => {
+			const asComputed = (
+				target: object,
+				key: string | symbol,
+				receiver: unknown,
+				descriptior: PropertyDescriptor
+			): unknown => {
 				// The function is accually safe to reference because the key cannot be accessed in a weakmap.
 				/* eslint-disable @typescript-eslint/unbound-method */
 				if (_compted.has(descriptior.get!))
 					return _compted.get(descriptior.get!)!();
-
 
 				let value: unknown;
 				let revoke: (() => void) | undefined;
@@ -275,10 +300,11 @@ export abstract class Model {
 
 						const oldValue = value;
 						let newValue!: unknown;
-						const observe = this.$magic(() => newValue = Reflect.get(target, key, receiver) as unknown);
+						const observe = this.$magic(
+							() => (newValue = Reflect.get(target, key, receiver) as unknown)
+						);
 
-						if (newValue !== value)
-							value = newValue;
+						if (newValue !== value) value = newValue;
 
 						revoke = observe(() => {
 							dirty = true;
@@ -286,7 +312,7 @@ export abstract class Model {
 								chain: attachLink(chain, createLink(target, key)),
 								type: EventType.Modify,
 								oldValue: oldValue,
-								newValue: value
+								newValue: value,
 							});
 						});
 					}
@@ -312,11 +338,28 @@ export abstract class Model {
 							case '$ref': {
 								returnLink = true;
 								return <T>(link: Link): Reference<T> => ({
-									get: (): T => Reflect.get(...link as readonly [target: object, key: string | symbol]) as T,
-									set: (value: T): void => void Reflect.set(...link as readonly [target: object, key: string | symbol], value),
+									get: (): T =>
+										Reflect.get(
+											...(link as readonly [
+												target: object,
+												key: string | symbol
+											])
+										) as T,
+									set: (value: T): void =>
+										void Reflect.set(
+											...(link as readonly [
+												target: object,
+												key: string | symbol
+											]),
+											value
+										),
 									observe: (listener) => ({
-										revoke: this.$e.on<T>((event) => listener(event.newValue, event.oldValue, event.changes), { type: EventType.Modify, link })
-									})
+										revoke: this.$e.on<T>(
+											(event) =>
+												listener(event.newValue, event.oldValue, event.changes),
+											{ type: EventType.Modify, link }
+										),
+									}),
 								});
 							}
 
@@ -325,7 +368,7 @@ export abstract class Model {
 								return (chain: Chain): void =>
 									this.$scheduleEmit_({
 										type: EventType.Modify,
-										chain
+										chain,
 									});
 							}
 
@@ -352,7 +395,10 @@ export abstract class Model {
 						return attachLink(chain, createLink(target, key));
 					}
 
-					const descriptior = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), key);
+					const descriptior = Object.getOwnPropertyDescriptor(
+						Object.getPrototypeOf(target),
+						key
+					);
 
 					if (descriptior?.get)
 						return asComputed(target, key, receiver, descriptior);
@@ -395,10 +441,8 @@ export abstract class Model {
 							});
 
 						const extender = extenders?.get(key);
-						if (extender)
-							extender(notify);
-						else
-							notify();
+						if (extender) extender(notify);
+						else notify();
 					}
 
 					return succeeded;
@@ -409,10 +453,11 @@ export abstract class Model {
 					if (isRoot && attach?.has(property)) {
 						// This is a unsafe convertion from any to Model | undefined.
 						// However, explicitly checking if the value is a Model is too size consuming.
-						const model = (attributes.value ?? attributes.get?.()) as Model | undefined;
+						const model = (attributes.value ?? attributes.get?.()) as
+							| Model
+							| undefined;
 
-						if (model)
-							model.$e.pipe(this.$e);
+						if (model) model.$e.pipe(this.$e);
 					}
 
 					return Reflect.defineProperty(target, property, attributes);

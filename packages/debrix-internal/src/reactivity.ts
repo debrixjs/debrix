@@ -3,10 +3,14 @@ import { insert, detach, destroy } from './document';
 import { createFragment, Fragment, NodeLike } from './utils';
 
 interface Lifecycle {
-	destroy(): void
+	destroy(): void;
 }
 
-export function bind<T, N extends ChildNode>(node: N, binder: Binder<T, N>, accessor: Computed<T>): Lifecycle {
+export function bind<T, N extends ChildNode>(
+	node: N,
+	binder: Binder<T, N>,
+	accessor: Computed<T>
+): Lifecycle {
 	const binding = binder(node, accessor);
 	return {
 		destroy() {
@@ -16,7 +20,9 @@ export function bind<T, N extends ChildNode>(node: N, binder: Binder<T, N>, acce
 }
 
 export function bind_text(node: Text, accessor: Computed<string>): Lifecycle {
-	const subscription = accessor.observe(() => node.textContent = accessor.get());
+	const subscription = accessor.observe(
+		() => (node.textContent = accessor.get())
+	);
 	node.textContent = accessor.get();
 	return {
 		destroy() {
@@ -25,10 +31,16 @@ export function bind_text(node: Text, accessor: Computed<string>): Lifecycle {
 	};
 }
 
-export function bind_attr<N extends Element>(node: N, attr: string, accessor: Computed<string | undefined>): Lifecycle {
+export function bind_attr<N extends Element>(
+	node: N,
+	attr: string,
+	accessor: Computed<string | undefined>
+): Lifecycle {
 	const render = () => {
 		const value = accessor.get();
-		return value === undefined ? node.removeAttribute(attr) : node.setAttribute(attr, value);
+		return value === undefined
+			? node.removeAttribute(attr)
+			: node.setAttribute(attr, value);
 	};
 	const subscription = accessor.observe(render);
 	render();
@@ -43,7 +55,10 @@ export type AttributeMap = {
 	readonly [_ in string]?: string;
 };
 
-export function bind_attr_spread<N extends Element>(node: N, accessor: Computed<AttributeMap>): Lifecycle {
+export function bind_attr_spread<N extends Element>(
+	node: N,
+	accessor: Computed<AttributeMap>
+): Lifecycle {
 	const render = () => {
 		const attrs = accessor.get();
 
@@ -53,11 +68,8 @@ export function bind_attr_spread<N extends Element>(node: N, accessor: Computed<
 
 				// This is correct. I want to check if value is '' or undefined.
 				// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-				if (value)
-					node.setAttribute(name, value);
-				else
-					node.removeAttribute(name);
-				
+				if (value) node.setAttribute(name, value);
+				else node.removeAttribute(name);
 			}
 		}
 	};
@@ -81,7 +93,6 @@ export function bind_when(
 
 	return createFragment({
 		insert(target, previous) {
-
 			const rerender = (value: boolean) => {
 				if (value) {
 					if (!attached) {
@@ -114,7 +125,7 @@ export function bind_when(
 
 export function bind_each<T = unknown>(
 	render: (item: T) => readonly ChildNode[],
-	accessor: Computed<ArrayLike<T>>,
+	accessor: Computed<ArrayLike<T>>
 ): Lifecycle {
 	let subscription: Subscription | undefined;
 	let prevNodes: readonly ChildNode[] = [];
@@ -125,8 +136,7 @@ export function bind_each<T = unknown>(
 				const newNodes: ChildNode[] = [];
 
 				const length = array.length;
-				for (let i = 0; i < length; i++)
-					newNodes.push(...render(array[i]!));
+				for (let i = 0; i < length; i++) newNodes.push(...render(array[i]!));
 
 				const newLength = newNodes.length;
 				const prevLength = prevNodes.length;
@@ -134,16 +144,14 @@ export function bind_each<T = unknown>(
 
 				for (let i = 0; i < prevLength; i++) {
 					if (i < newLength)
-						target.replaceChild(prevNode = newNodes[i]!, prevNodes[i]!);
-					else
-						target.removeChild(prevNodes[i]!);
+						target.replaceChild((prevNode = newNodes[i]!), prevNodes[i]!);
+					else target.removeChild(prevNodes[i]!);
 				}
 
 				if (newLength > prevLength) {
 					const nodes = new Array<ChildNode>(newLength - prevLength);
 
-					for (let i = 0; i < newLength; i++)
-						nodes[i] = newNodes[i]!;
+					for (let i = 0; i < newLength; i++) nodes[i] = newNodes[i]!;
 
 					insert(target, prevNode, ...nodes);
 				}
