@@ -16,39 +16,31 @@ import {
 	buildToBuf,
 } from '../../../utils/build';
 
-const shared = buildOptions({
-	plugins: [externalPlugin(), nodeResolvePlugin()],
+const cjsShared = buildOptions({
+	bundle: true,
+	format: 'cjs',
+	plugins: [
+		externalPlugin(),
+		replacePlugin({
+			replace: [[/\/\*\s*#ESM\s*\*\/[^]+?\/\*\s*\/ESM\s*\*\//g, '']],
+			filter: /\.[tj]s$/,
+		}),
+		nodeResolvePlugin(),
+	],
 });
 
-const cjsShared = buildOptions(
-	{
-		plugins: [
-			replacePlugin({
-				replace: [[/\/\*\s*#ESM\s*\*\/[^]+?\/\*\s*\/ESM\s*\*\//g, '']],
-				filter: /\.[tj]s$/,
-			}),
-		],
-	},
-	shared,
-	{
-		format: 'cjs',
-	}
-);
-
-const esmShared = buildOptions(
-	{
-		plugins: [
-			replacePlugin({
-				replace: [[/\/\*\s*#CJS\s*\*\/[^]+?\/\*\s*\/CJS\s*\*\//g, '']],
-				filter: /\.[tj]s$/,
-			}),
-		],
-	},
-	shared,
-	{
-		format: 'esm',
-	}
-);
+const esmShared = buildOptions({
+	bundle: true,
+	format: 'esm',
+	plugins: [
+		externalPlugin(),
+		replacePlugin({
+			replace: [[/\/\*\s*#CJS\s*\*\/[^]+?\/\*\s*\/CJS\s*\*\//g, '']],
+			filter: /\.[tj]s$/,
+		}),
+		nodeResolvePlugin(),
+	],
+});
 
 parallel(
 	() => declarations(),
@@ -73,7 +65,6 @@ parallel(
 		]);
 
 		const _shared = buildOptions({
-			bundle: true,
 			platform: 'node',
 		});
 
