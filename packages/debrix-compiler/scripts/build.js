@@ -64,20 +64,17 @@ parallel(
 			'--message-format=json-render-diagnostics',
 		]);
 
+		const nativeModulePath = path.posix.relative(
+			path.posix.resolve('node/'),
+			path.posix.resolve('lib/debrix.node')
+		);
+
 		const _shared = buildOptions({
 			platform: 'node',
 		});
 
 		const workerShared = buildOptions(_shared, {
 			entryPoints: ['src/node_worker.ts'],
-			define: {
-				NATIVE_MODULE_PATH: JSON.stringify(
-					path.posix.relative(
-						path.posix.resolve('node/'),
-						path.posix.resolve('lib/debrix.node')
-					) + '?external'
-				),
-			},
 		});
 
 		const parentShared = buildOptions(_shared, {
@@ -89,6 +86,11 @@ parallel(
 				build(
 					buildOptions(cjsShared, workerShared, {
 						outfile: 'node/worker.js',
+						define: {
+							NATIVE_MODULE_PATH: JSON.stringify(
+								nativeModulePath + '?external'
+							),
+						},
 					})
 				),
 
@@ -96,6 +98,14 @@ parallel(
 				build(
 					buildOptions(esmShared, workerShared, {
 						outfile: 'node/worker.mjs',
+						define: {
+							// The worker is required using createRequire.
+							// ESBuild will not interfere with this require
+							// call. Therefore, '?external' is excluded.
+							NATIVE_MODULE_PATH: JSON.stringify(
+								nativeModulePath /*+ '?external'*/
+							),
+						},
 					})
 				),
 
@@ -166,7 +176,7 @@ parallel(
 		await rm(tempdir, { recursive: true, force: true });
 
 		// Bundle workers into plain text (buffer).
-		const workerCjsFile = await buildToBuf(
+		const workerFile = await buildToBuf(
 			buildOptions(
 				{
 					plugins: [
@@ -179,22 +189,7 @@ parallel(
 				cjsShared,
 				{
 					entryPoints: ['src/wasm_worker.ts'],
-				}
-			)
-		);
-		const workerEsmFile = await buildToBuf(
-			buildOptions(
-				{
-					plugins: [
-						virtualPlugin({
-							'debrix.wasm.lib': wasmLibFile,
-							'debrix.wasm': wasmFile,
-						}),
-					],
-				},
-				esmShared,
-				{
-					entryPoints: ['src/wasm_worker.ts'],
+					minify: true,
 				}
 			)
 		);
@@ -208,9 +203,7 @@ parallel(
 						entryPoints: ['src/wasm.ts'],
 						outfile: 'wasm/index.js',
 						define: {
-							__WORKER_TEMPLATE: JSON.stringify(
-								textDecoder.decode(workerCjsFile)
-							),
+							__WORKER_TEMPLATE: JSON.stringify(textDecoder.decode(workerFile).trim()),
 						},
 					})
 				),
@@ -221,9 +214,7 @@ parallel(
 						entryPoints: ['src/wasm.ts'],
 						outfile: 'wasm/index.mjs',
 						define: {
-							__WORKER_TEMPLATE: JSON.stringify(
-								textDecoder.decode(workerEsmFile)
-							),
+							__WORKER_TEMPLATE: JSON.stringify(textDecoder.decode(workerFile).trim()),
 						},
 					})
 				)

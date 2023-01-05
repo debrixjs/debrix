@@ -43,9 +43,9 @@ async function ensureService(): Promise<
 	if (isNodeJs()) {
 		const workerText =
 			'const worker_threads = require("node:worker_threads");\n' +
-			'postMessage = (data) => worker_threads.parentPort.postMessage(data);\n\n' +
+			'module.exports.postMessage = (data) => worker_threads.parentPort.postMessage(data);\n\n' +
 			WORKER_TEMPLATE +
-			'\nworker_threads.parentPort.on("message", LISTENER);\n';
+			'\nworker_threads.parentPort.on("message", module.exports.listener);\n';
 
 		const worker_threads = await importWorkerThreads();
 		const worker = new worker_threads.Worker(workerText, { eval: true });
@@ -75,9 +75,10 @@ async function ensureService(): Promise<
 			}));
 	} else {
 		const workerText =
+			'module.exports.postMessage = postMessage;\n' +
 			WORKER_TEMPLATE +
 			'onmessage = (event) => {\n' +
-			'  LISTENER(event.data);\n' +
+			'  module.exports.listener(event.data);\n' +
 			'};\n';
 
 		const worker = new Worker(createWorkerURL(workerText));
