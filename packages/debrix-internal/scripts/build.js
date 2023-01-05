@@ -15,20 +15,23 @@ const shared = {
 parallel(
 	() => declarations(),
 
-	() => build({
-		...shared,
-		outfile: './index.js',
-		format: 'cjs',
-	}),
+	() =>
+		build({
+			...shared,
+			outfile: './index.js',
+			format: 'cjs',
+		}),
 
-	() => build({
-		...shared,
-		outfile: './index.mjs',
-		format: 'esm',
-	}),
+	() =>
+		build({
+			...shared,
+			outfile: './index.mjs',
+			format: 'esm',
+		}),
 
-	() => writeFile(
-		'./index.d.ts',
-		"export * from './types';\nexport { default } from './types';\n"
-	)
+	() =>
+		writeFile(
+			'./index.d.ts',
+			"export * from './types';\nexport { default } from './types';\n"
+		)
 );

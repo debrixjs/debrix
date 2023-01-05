@@ -18,46 +18,46 @@ const shared = {
 };
 
 parallel(
-		() => declarations(),
+	() => declarations(),
 
-		() =>
-			esbuild.build({
-				...shared,
-				entryPoints: ['./src/index.ts'],
-				outfile: './index.js',
-				format: 'cjs',
-			}),
+	() =>
+		esbuild.build({
+			...shared,
+			entryPoints: ['./src/index.ts'],
+			outfile: './index.js',
+			format: 'cjs',
+		}),
 
-		() =>
-			esbuild.build({
-				...shared,
-				entryPoints: ['./src/index.ts'],
-				outfile: './index.mjs',
-				format: 'esm',
-			}),
+	() =>
+		esbuild.build({
+			...shared,
+			entryPoints: ['./src/index.ts'],
+			outfile: './index.mjs',
+			format: 'esm',
+		}),
 
-		() =>
-			esbuild.build({
-				...shared,
-				entryPoints: ['./src/binders.ts'],
-				outfile: './binders/index.js',
-				format: 'cjs',
-			}),
+	() =>
+		esbuild.build({
+			...shared,
+			entryPoints: ['./src/binders.ts'],
+			outfile: './binders/index.js',
+			format: 'cjs',
+		}),
 
-		() =>
-			esbuild.build({
-				entryPoints: ['./src/binders.ts'],
-				outfile: './binders/index.mjs',
-				format: 'esm',
-			}),
+	() =>
+		esbuild.build({
+			entryPoints: ['./src/binders.ts'],
+			outfile: './binders/index.mjs',
+			format: 'esm',
+		}),
 
-		() => writeFile('./index.d.ts', "export * from './types';\n"),
+	() => writeFile('./index.d.ts', "export * from './types';\n"),
 
-		async () => {
-			await mkdir('./binders/', { recursive: true });
-			await writeFile(
-				'./binders/index.d.ts',
-				"export * from '../types/binders';\n"
-			);
-		}
+	async () => {
+		await mkdir('./binders/', { recursive: true });
+		await writeFile(
+			'./binders/index.d.ts',
+			"export * from '../types/binders';\n"
+		);
+	}
 );

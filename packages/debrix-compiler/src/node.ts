@@ -17,8 +17,8 @@ function nextHandle() {
 }
 
 let worker_filename: string | URL;
-/* #CJS */worker_filename = resolve(WORKER_URL)/* /CJS */
-/* #ESM */worker_filename = new URL(WORKER_URL, import.meta.url)/* /ESM */
+/* #CJS */ worker_filename = resolve(WORKER_URL); /* /CJS */
+/* #ESM */ worker_filename = new URL(WORKER_URL, import.meta.url); /* /ESM */
 
 const worker = new Worker(worker_filename);
 worker.unref();
