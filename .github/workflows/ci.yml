@@ -34,7 +34,11 @@ jobs:
         with:
           node-version: 16
 
+      - uses: nrwl/nx-set-shas@v3
       - run: npm ci
-      - run: npm run build
-      - run: npm run lint
-      - run: npm run test
+
+      - run: npx nx workspace-lint
+      - run: npx nx format:check
+      - run: npx nx affected --target=lint --parallel=3
+      - run: npx nx affected --target=build --parallel=3
+      - run: npx nx affected --target=test --parallel=3

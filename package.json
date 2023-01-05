@@ -7,11 +7,10 @@
 		"packages/*"
 	],
 	"scripts": {
-		"lerna": "lerna",
-		"build": "lerna run build --parallel",
+		"build": "nx run-many --target=build",
 		"lint": "eslint --ext .js,.ts . && prettier --check .",
 		"lint-fix": "eslint --fix --ext .js,.ts . && prettier --write .",
-		"test": "lerna run test",
+		"test": "nx run-many --target=test",
 		"version": "changeset version",
 		"publish": "changeset publish"
 	},
@@ -28,6 +27,7 @@
 		"lerna": "^6.3.0",
 		"lodash": "^4.17.21",
 		"mime": "^3.0.0",
+		"nx": "^15.4.4",
 		"prettier": "2.8.1",
 		"typescript": "^4.9.4"
 	}
