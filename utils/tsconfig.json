@@ -1,12 +1,10 @@
 {
-	"extends": "../../tsconfig.json",
-	"include": ["src"],
+	"extends": "../tsconfig.json",
 	"compilerOptions": {
 		"module": "ESNext",
 		"target": "ESNext",
 		"lib": ["ESNext", "DOM"],
 		"types": ["node"],
-		"allowSyntheticDefaultImports": true,
-		"rootDir": "src"
+		"rootDir": "."
 	}
 }

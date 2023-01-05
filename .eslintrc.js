@@ -20,7 +20,7 @@ module.exports = {
 	parserOptions: {
 		ecmaVersion: 'latest',
 		sourceType: 'module',
-		project: './packages/*/tsconfig.json',
+		project: ['./packages/*/tsconfig.json', './utils/tsconfig.json'],
 	},
 	extends: ['eslint:recommended', 'prettier'],
 	rules: {
