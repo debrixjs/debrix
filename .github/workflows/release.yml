@@ -28,7 +28,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - if: steps.changesets.outputs.hasChangesets == 'false'
-        run:
+        run: |
           - npm run publish
           - git push --follow-tags
 
@@ -57,6 +57,6 @@ jobs:
         with:
           RUSTTARGET: ${{ matrix.target }}
       - run: node .github/scripts/upload_assets.js
-        with:
-          release_id: ${{ needs.release.outputs.published }}
-          files: ${{ matrix.archive_name }}
+        env:
+          INPUT_RELEASE_ID: ${{ needs.release.outputs.published }}
+          INPUT_FILES: ${{ matrix.archive_name }}
