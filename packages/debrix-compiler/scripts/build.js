@@ -203,7 +203,9 @@ parallel(
 						entryPoints: ['src/wasm.ts'],
 						outfile: 'wasm/index.js',
 						define: {
-							__WORKER_TEMPLATE: JSON.stringify(textDecoder.decode(workerFile).trim()),
+							__WORKER_TEMPLATE: JSON.stringify(
+								textDecoder.decode(workerFile).trim()
+							),
 						},
 					})
 				),
@@ -214,7 +216,9 @@ parallel(
 						entryPoints: ['src/wasm.ts'],
 						outfile: 'wasm/index.mjs',
 						define: {
-							__WORKER_TEMPLATE: JSON.stringify(textDecoder.decode(workerFile).trim()),
+							__WORKER_TEMPLATE: JSON.stringify(
+								textDecoder.decode(workerFile).trim()
+							),
 						},
 					})
 				)
