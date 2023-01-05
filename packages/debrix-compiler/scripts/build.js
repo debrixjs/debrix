@@ -120,13 +120,12 @@ parallel(
 				)
 		);
 	},
+	() => writeFile('index.js', "module.exports = require('./node');\n"),
+	() => writeFile('index.mjs', "export * from './node/index.mjs';\n"),
+	() => writeFile('index.d.ts', "export * from './types/node';\n"),
 	async () => {
-		parallel(
-			() => writeFile('index.js', "module.exports = require('./node');\n"),
-			() => writeFile('index.mjs', "export * from './node/index.mjs';\n"),
-			() => writeFile('index.d.ts', "export * from './types/node';\n"),
-			() => writeFile('node/index.d.ts', "export * from '../types/node';\n")
-		);
+		await mkdir('node', { recursive: true });
+		await writeFile('node/index.d.ts', "export * from '../types/node';\n");
 	},
 
 	// Build WASM distribution
