@@ -2,9 +2,9 @@
 	"$schema": "./node_modules/nx/schemas/nx-schema.json",
 	"extends": "nx/presets/npm.json",
 	"pluginsConfig": {
-	  "@nrwl/js": {
-		"analyzeSourceFiles": true
-	  }
+		"@nrwl/js": {
+			"analyzeSourceFiles": true
+		}
 	},
 	"targetDefaults": {
 		"build": {
