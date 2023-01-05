@@ -24,7 +24,6 @@
 		"esbuild-register": "^3.4.2",
 		"eslint": "^8.31.0",
 		"eslint-config-prettier": "^8.6.0",
-		"lerna": "^6.3.0",
 		"lodash": "^4.17.21",
 		"mime": "^3.0.0",
 		"nx": "^15.4.4",
