@@ -7,6 +7,7 @@ import {
 	_validate,
 } from './common';
 import { Worker } from 'node:worker_threads';
+import { resolve } from 'node:path';
 
 declare const WORKER_URL: string;
 
@@ -15,7 +16,11 @@ function nextHandle() {
 	return _nextHandle++;
 }
 
-const worker = new Worker(new URL(WORKER_URL, import.meta.url));
+let worker_filename: string | URL;
+/* #CJS */worker_filename = resolve(WORKER_URL)/* /CJS */
+/* #ESM */worker_filename = new URL(WORKER_URL, import.meta.url)/* /ESM */
+
+const worker = new Worker(worker_filename);
 worker.unref();
 
 export function build(
