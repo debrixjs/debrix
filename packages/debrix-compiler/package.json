@@ -39,17 +39,14 @@
 		"./index.d.ts"
 	],
 	"scripts": {
-		"build": "node build.mjs",
-		"clean": "node clean.mjs",
+		"build": "node -r esbuild-register scripts/build.js",
 		"test": "node test/index.mjs",
 		"_postinstall": "node install.mjs",
 		"prepublishOnly": "npm run build"
 	},
 	"devDependencies": {
-		"@esbuild-plugins/node-resolve": "^0.1.4",
 		"@types/node": "^18.11.18",
 		"cargo-cp-artifact": "^0.1.7",
-		"esbuild": "^0.16.13",
 		"follow-redirects": "^1.15.2"
 	},
 	"peerDependencies": {

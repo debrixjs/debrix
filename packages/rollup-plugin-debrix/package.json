@@ -22,15 +22,12 @@
 		"./index.d.ts"
 	],
 	"scripts": {
-		"build": "node build.mjs",
+		"build": "node -r esbuild-register scripts/build.js",
 		"prepublishOnly": "npm run build"
 	},
 	"dependencies": {
 		"@rollup/pluginutils": "^5.0.2",
 		"sourcemap-codec": "^1.4.8"
-	},
-	"devDependencies": {
-		"eslint": "^8.31.0"
 	},
 	"peerDependencies": {
 		"@debrix/compiler": "*",
