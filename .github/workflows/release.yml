@@ -28,9 +28,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - if: steps.changesets.outputs.hasChangesets == 'false'
-        run: |
-          - npm run publish
-          - git push --follow-tags
+        run: git push --follow-tags
 
   build_compiler:
     name: Build debrix_compiler (${{ matrix.target }})
