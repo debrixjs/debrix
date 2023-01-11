@@ -18,7 +18,7 @@
 		"@changesets/cli": "^2.26.0",
 		"@esbuild-plugins/node-resolve": "^0.1.4",
 		"@types/lodash": "^4.14.191",
-		"@typescript-eslint/eslint-plugin": "^5.48.0",
+		"@typescript-eslint/eslint-plugin": "^5.48.1",
 		"@typescript-eslint/parser": "^5.48.0",
 		"esbuild": "^0.16.14",
 		"esbuild-register": "^3.4.2",
