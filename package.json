@@ -12,7 +12,8 @@
 		"lint-fix": "eslint --fix --ext .js,.ts . && prettier --write .",
 		"test": "nx run-many --target=test",
 		"version": "changeset version",
-		"publish": "changeset publish"
+		"publish": "changeset publish",
+		"changeset": "changeset"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.26.0",
