@@ -22,7 +22,7 @@
 		"@typescript-eslint/parser": "^5.49.0",
 		"esbuild": "^0.17.4",
 		"esbuild-register": "^3.4.2",
-		"eslint": "^8.32.0",
+		"eslint": "^8.34.0",
 		"eslint-config-prettier": "^8.6.0",
 		"lodash": "^4.17.21",
 		"mime": "^3.0.0",
